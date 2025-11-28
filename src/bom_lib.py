@@ -38,7 +38,6 @@ def parse_with_verification(bom_list):
             
             if capture_next_line_as_pcb:
                 # CLEANUP LOGIC: Remove redundant "PCB" prefix if present
-                # Example: "PCB      RAT DIY PCB" -> "RAT DIY PCB"
                 clean_name = re.sub(r'^PCB\s+', '', line, flags=re.IGNORECASE).strip()
                 
                 master_inventory[f"PCB | {clean_name}"] += 1
@@ -120,16 +119,17 @@ def get_residual_report(stats):
 def get_injection_warnings(inventory):
     """
     Checks the inventory for auto-injected items and returns specific warning messages.
+    FIXED: Uses .get() to avoid creating 0-count entries in the defaultdict.
     """
     warnings = []
     
     # Check for SMD Adapters
-    if inventory["Hardware/Misc | SMD_ADAPTER_BOARD"] > 0:
+    if inventory.get("Hardware/Misc | SMD_ADAPTER_BOARD", 0) > 0:
         warnings.append("⚠️  SMD ADAPTERS: Script forced adapters for MMBF5457.")
         warnings.append("    >> ACTION: Check if your PCB already has SOT-23 pads. If so, don't buy these.")
 
     # Check for IC Sockets
-    if inventory["Hardware/Misc | 8_PIN_DIP_SOCKET"] > 0:
+    if inventory.get("Hardware/Misc | 8_PIN_DIP_SOCKET", 0) > 0:
         warnings.append("ℹ️  IC SOCKETS: Script forced sockets for all DIP chips.")
         warnings.append("    >> ACTION: Highly recommended, but optional if you prefer direct soldering.")
         
@@ -180,14 +180,8 @@ def get_buy_details(category, val, count):
 
 def sort_inventory(inventory):
     """
-    Sorts the inventory based on 'Nerd Shopping Priority':
-    1. PCBs
-    2. Active Components (ICs, Transistors)
-    3. Electromechanical
-    4. Passive Components (Resistors last)
+    Sorts the inventory based on 'Nerd Shopping Priority'.
     """
-    
-    # Define the exact order you want
     priority_order = [
         "PCB",
         "ICs",
@@ -200,23 +194,14 @@ def sort_inventory(inventory):
         "Resistors"
     ]
     
-    # Create a fast lookup map: {"PCB": 0, "ICs": 1, ...}
     priority_map = {name: i for i, name in enumerate(priority_order)}
     
     def sort_key(item):
-        # item is a tuple: (full_key, count)
         full_key = item[0] 
-        
         if " | " not in full_key: 
-            return (999, full_key) # Push bad keys to bottom
-            
+            return (999, full_key)
         category, value = full_key.split(" | ", 1)
-        
-        # Get rank (default to 100 if category is unknown)
         rank = priority_map.get(category, 100)
-        
-        # Return tuple: (Rank, Alphabetical Value)
-        # Python sorts by Rank first, then by Value name
         return (rank, value)
 
     return sorted(inventory.items(), key=sort_key)

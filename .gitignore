@@ -7,3 +7,4 @@ output/
 .hypothesis/
 .vscode/
 *.code-workspace
+.streamlit/

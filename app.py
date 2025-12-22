@@ -186,7 +186,7 @@ if st.session_state.inventory and st.session_state.stats:
     )
     writer.writeheader()
     writer.writerows(final_data)
-    csv_out = csv_buf.getvalue()
+    csv_out = csv_buf.getvalue().encode("utf-8-sig")
 
     # Markdown
     md_out = "# Shopping List\n\n| Category | Part | Buy | Notes |\n|---|---|---|---|\n"

@@ -92,7 +92,7 @@ if __name__ == "__main__":
 
     # Save CSV
     try:
-        with open(csv_path, "w", newline="", encoding="utf-8") as f:
+        with open(csv_path, "w", newline="", encoding="utf-8-sig") as f:
             writer = csv.writer(f)
             writer.writerow(["Category", "Part Value", "BOM Qty", "Buy Qty", "Notes"])
             for row in final_data:

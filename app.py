@@ -67,6 +67,10 @@ with text_tab:
             st.session_state.inventory, st.session_state.stats = (
                 parse_with_verification([raw_text])
             )
+            st.toast(
+                f"Parsed {st.session_state.stats['lines_read']} lines successfully.",
+                icon="✅",
+            )
 
 # Tab 2: CSV Upload
 with csv_tab:
@@ -109,6 +113,7 @@ with csv_tab:
 
                 st.session_state.inventory = inventory
                 st.session_state.stats = stats
+                st.toast(f"Parsed {stats['lines_read']} lines successfully.", icon="✅")
 
             except Exception as e:
                 st.error(f"CSV explosion: {e}")
@@ -118,8 +123,6 @@ with csv_tab:
 if st.session_state.inventory and st.session_state.stats:
     inventory = st.session_state.inventory
     stats = st.session_state.stats
-
-    st.toast(f"Parsed {stats['lines_read']} lines successfully.", icon="✅")
 
     # 1. Show Stats
     with st.container():

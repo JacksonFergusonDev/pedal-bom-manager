@@ -1,7 +1,7 @@
 # 🎸 Guitar Pedal BOM Manager
 
 ![Python Version](https://img.shields.io/badge/python-3.10+-blue.svg)
-![Tests](https://img.shields.io/badge/tests-passing-brightgreen.svg)
+[![Python Application CI](https://github.com/JacksonFergusonDev/pedal-bom-manager/actions/workflows/python-app.yml/badge.svg)](https://github.com/JacksonFergusonDev/pedal-bom-manager/actions/workflows/python-app.yml)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 
@@ -109,10 +109,11 @@ In hardware prototyping, the cost of downtime exceeds the cost of inventory.
 
 ## 🔬 Tech Stack
 
-- **Python 3.10+** - Core language
+- **Python 3.10** - Core language
 - **Regex** - Pattern matching engine for component extraction
 - **Streamlit** - Interactive web interface
-- **CSV/Markdown** - Structured output formats
+- **Docker** - Containerized runtime environment
+- **GitHub Actions** - CI/CD pipeline (Ruff/Mypy/Pytest)
 
 ---
 
@@ -141,13 +142,19 @@ IC1     TL072
 ## 📦 Project Structure
 ```text
 pedal-bom-manager/
+├── .github/
+│   └── workflows/
+│       └── python-app.yml <-- CI/CD Pipeline
 ├── .gitignore
+├── .pre-commit-config.yaml <-- Linting configuration
 ├── LICENSE                <-- MIT License
 ├── README.md
 ├── app.py                 <-- Interface: Streamlit Web App
 ├── cli.py                 <-- Interface: Command Line Tool
-├── pytest.ini             <-- Testing: Pytest configuration
-├── requirements.txt       <-- Dependencies
+├── mypy.ini               <-- Type checking configuration
+├── pytest.ini             <-- Testing configuration
+├── requirements.txt       <-- Production dependencies
+├── requirements-dev.txt   <-- Dev dependencies (Tests + Linting)
 ├── assets/
 │   └── demo.gif           <-- Demo: Visual walkthrough
 ├── data/                  <-- Input: Sample BOM files
@@ -159,8 +166,10 @@ pedal-bom-manager/
 │   ├── shopping_list.csv
 │   └── checklist.md
 ├── src/
+│   ├── __init__.py
 │   └── bom_lib.py         <-- Logic: Regex engine, verification, and buying rules
 └── tests/
+    ├── test_app.py        <-- Testing: App integration tests
     └── test_parser.py     <-- Testing: Parser unit tests
 ```
 
@@ -191,7 +200,7 @@ python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # 4. Install dependencies
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 ```
 
 ### Usage
@@ -221,6 +230,17 @@ For batch processing local files:
 python cli.py
 ```
 3. Check the terminal for the Verification Report and find your generated files in the working directory
+
+#### Option 4: Run via Docker
+If you have Docker installed, you can run the app in an isolated container without installing Python dependencies locally.
+
+```bash
+# Build the image
+docker build -t pedal-bom-manager .
+
+# Run the container (Access at http://localhost:8501)
+docker run -p 8501:8501 pedal-bom-manager
+```
 
 ---
 
@@ -282,8 +302,8 @@ This project is evolving from a static text parser into a dynamic procurement op
 
 **Goal:** Eliminate environment drift and ensure deterministic execution.
 
-* **Dockerization:** Dockerfile and docker-compose workflow to isolate dependencies (Python 3.11, Streamlit) and guarantee a reproducible runtime environment across different machines.
-* **CI/CD Pipeline:** GitHub Actions to automate testing:
+* **[COMPLETED] Dockerization:** Dockerfile and docker-compose workflow to isolate dependencies (Python 3.11, Streamlit) and guarantee a reproducible runtime environment across different machines.
+* **[COMPLETED] CI/CD Pipeline:** GitHub Actions to automate testing:
   * **Linting:** Strict `ruff` enforcement for PEP-8 compliance.
   * **Unit Tests:** Automated `pytest` execution on every commit.
   * **Type Checking:** Static analysis via `mypy`.

@@ -190,21 +190,8 @@ if st.session_state.inventory and st.session_state.stats:
     writer.writerows(final_data)
     csv_out = csv_buf.getvalue().encode("utf-8-sig")
 
-    # Markdown
-    md_out = "# Shopping List\n\n| Category | Part | Buy | Notes |\n|---|---|---|---|\n"
-    for row in final_data:
-        md_out += f"| {row['Category']} | **{row['Part']}** | **{row['Buy Qty']}** | *{row['Notes']}* |\n"
-
-    d1, d2 = st.columns(2)
-
-    d1.download_button(
+    st.download_button(
         "Download CSV", data=csv_out, file_name="pedal_parts.csv", mime="text/csv"
-    )
-    d2.download_button(
-        "Download Markdown",
-        data=md_out,
-        file_name="pedal_checklist.md",
-        mime="text/markdown",
     )
 
 st.divider()

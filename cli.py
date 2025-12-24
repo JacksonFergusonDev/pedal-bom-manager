@@ -88,7 +88,6 @@ if __name__ == "__main__":
     os.makedirs(out_dir, exist_ok=True)
 
     csv_path = os.path.join(out_dir, "shopping_list.csv")
-    md_path = os.path.join(out_dir, "checklist.md")
 
     # Save CSV
     try:
@@ -108,21 +107,5 @@ if __name__ == "__main__":
         print(f"\n✅ CSV: {csv_path}")
     except PermissionError:
         print(f"\n❌ Error: Close {csv_path} first.")
-
-    # Save Markdown
-    try:
-        with open(md_path, "w", encoding="utf-8") as f:
-            f.write("# Shopping List\n\n")
-            f.write("| Category | Part | BOM | Buy | Notes |\n")
-            f.write("| --- | --- | :---: | :---: | --- |\n")
-            for row in final_data:
-                # Only wrap in italics if text exists
-                note_str = f"*{row['Notes']}*" if row["Notes"] else ""
-                f.write(
-                    f"| {row['Category']} | **{row['Part']}** | {row['BOM_Qty']} | **{row['Buy_Qty']}** | {note_str} |\n"
-                )
-        print(f"✅ MD:  {md_path}")
-    except PermissionError:
-        print(f"\n❌ Error: Close {md_path} first.")
 
     print("\nDone.")

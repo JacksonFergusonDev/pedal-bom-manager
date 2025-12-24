@@ -29,15 +29,42 @@ def test_pcb_trap():
     assert inventory["PCB | Big Muff Board"] == 1
 
 
-def test_smd_injection():
-    """Does it force the adapter board for the obsolete JFET?"""
-    raw_text = "Q1 2N5457"
-    inventory, stats = parse_with_verification([raw_text])
+# [tests/test_parser.py]
 
-    # Check for the part rename
-    assert inventory["Transistors | MMBF5457"] == 1
-    # Check for the injected adapter
-    assert inventory["Hardware/Misc | SMD_ADAPTER_BOARD"] == 1
+
+def test_2n5457_behavior():
+    """
+    Ensure we do NOT auto-replace 2N5457 or inject adapters.
+    The user is smart; we just warn them in the notes.
+    """
+    # Case 1: Vintage THT Part
+    raw_text = "Q1 2N5457"
+    inventory, _ = parse_with_verification([raw_text])
+
+    # Should stay as 2N5457
+    assert inventory["Transistors | 2N5457"] == 1
+    # Should NOT inject adapter
+    assert inventory.get("Hardware/Misc | SMD_ADAPTER_BOARD", 0) == 0
+
+    # Case 2: Modern SMD Part
+    raw_text_2 = "Q2 MMBF5457"
+    inventory_2, _ = parse_with_verification([raw_text_2])
+
+    # Should stay as MMBF5457
+    assert inventory_2["Transistors | MMBF5457"] == 1
+    # Should NOT inject adapter (User might have SOT-23 pads)
+    assert inventory_2.get("Hardware/Misc | SMD_ADAPTER_BOARD", 0) == 0
+
+
+def test_warning_flags():
+    """Verify that get_buy_details generates the correct warnings."""
+    # Test Obsolete Warning
+    _, note = get_buy_details("Transistors", "2N5457", 1)
+    assert "Obsolete" in note
+
+    # Test SMD Warning
+    _, note = get_buy_details("Transistors", "MMBF5457", 1)
+    assert "SMD Part" in note
 
 
 # 2. Stress Testing

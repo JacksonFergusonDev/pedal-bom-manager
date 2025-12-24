@@ -158,13 +158,6 @@ def categorize_part(
             val_clean = float_to_search_string(fval)
             val_up = val_clean.upper()
 
-    # SMD Substitution Logic (J201/2N5457 -> SMD Adapter)
-    if "2N5457" in val_up:
-        val_clean = "MMBF5457"
-        injection = "Hardware/Misc | SMD_ADAPTER_BOARD"
-    elif "MMBF5457" in val_up:
-        injection = "Hardware/Misc | SMD_ADAPTER_BOARD"
-
     return category, val_clean, injection
 
 
@@ -348,9 +341,15 @@ def get_buy_details(category: str, val: str, count: int) -> Tuple[int, str]:
     elif category == "Diodes":
         buy = max(10, count + 5)
     elif category == "Transistors":
-        if "MMBF" in val:
+        # User asked for the obsolete THT part
+        if "2N5457" in val.upper():
+            buy = count + 3
+            note = "⚠️ Obsolete part! Check for speciality vendors or consider MMBF5457."
+
+        # Case B: User asked for the SMD part
+        elif "MMBF" in val.upper():
             buy = count + 5
-            note = "SMD SUB for 2N5457. Needs adapter!"
+            note = "SMD Part! Verify PCB pads or buy adapter."
         else:
             buy = count + 3
 

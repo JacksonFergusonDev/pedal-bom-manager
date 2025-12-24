@@ -140,3 +140,24 @@ def test_bs1852_formatting():
 
     val = 4700.0  # 4.7k
     assert float_to_display_string(val) == "4k7"
+
+
+def test_suspicious_physics_warnings():
+    """
+    Ensure we flag physically improbable values.
+    """
+    # 1. Resistor too small (0.1 Ohm)
+    # Note: 0.1 -> parse_value_to_float -> 0.1
+    _, note_r = get_buy_details("Resistors", "0.1", 1)
+    assert "Suspicious" in note_r
+    assert "< 1Ω" in note_r
+
+    # 2. Capacitor too huge (1 Farad)
+    # Note: "1F" -> parse_value_to_float -> 1.0 (Huge!)
+    _, note_c = get_buy_details("Capacitors", "1F", 1)
+    assert "Suspicious" in note_c
+    assert "> 10mF" in note_c
+
+    # 3. Normal values should be fine
+    _, note_ok = get_buy_details("Resistors", "10k", 1)
+    assert "Suspicious" not in note_ok

@@ -330,16 +330,29 @@ def get_buy_details(category: str, val: str, count: int) -> Tuple[int, str]:
     buy = count
     note = ""
 
+    # --- Sanity Check (Suspicious Physics) ---
+    # We re-parse the value here to check for physics anomalies.
+    fval = parse_value_to_float(val)
+
     if category == "Resistors":
         buy = max(10, count + 5)
+        # Warn if < 1 Ohm (unless it's literally 0 for a jumper)
+        if fval is not None and 0.0 < fval < 1.0:
+            note = "⚠️ Suspicious Value (< 1Ω). Verify BOM."
+
     elif category == "Capacitors":
         if "100n" in val.lower() or "0.1u" in val.lower():
             buy = count + 10
             note = "Power filtering (buy bulk)."
         else:
             buy = count + 3
+        # Warn if > 10,000uF (0.01F) - Likely a parsing error (e.g. "1F")
+        if fval is not None and fval > 0.01:
+            note = "⚠️ Suspicious Value (> 10mF). Verify BOM."
+
     elif category == "Diodes":
         buy = max(10, count + 5)
+
     elif category == "Transistors":
         # User asked for the obsolete THT part
         if "2N5457" in val.upper():

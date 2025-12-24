@@ -341,11 +341,18 @@ def get_buy_details(category: str, val: str, count: int) -> Tuple[int, str]:
             note = "⚠️ Suspicious Value (< 1Ω). Verify BOM."
 
     elif category == "Capacitors":
-        if "100n" in val.lower() or "0.1u" in val.lower():
+        is_bypass_cap = False
+        if fval is not None:
+            # Check if value is approx 1.0e-7 (allow small float drift)
+            if abs(fval - 1.0e-7) < 1.0e-9:
+                is_bypass_cap = True
+
+        if is_bypass_cap:
             buy = count + 10
             note = "Power filtering (buy bulk)."
         else:
             buy = count + 3
+
         # Warn if > 10,000uF (0.01F) - Likely a parsing error (e.g. "1F")
         if fval is not None and fval > 0.01:
             note = "⚠️ Suspicious Value (> 10mF). Verify BOM."
@@ -487,8 +494,11 @@ def float_to_search_string(val: float) -> str:
         if val >= multiplier:
             # Check if it's a whole number after division
             reduced = val / multiplier
+            reduced = round(reduced, 6)  # Avoid float precision issues
+
             if reduced.is_integer():
                 return f"{int(reduced)}{suffix}"
+
             return f"{reduced:.1f}{suffix}"  # 4.7k
 
     # Cap/Inductor logic (u, n, p)
@@ -498,10 +508,12 @@ def float_to_search_string(val: float) -> str:
         for suffix, multiplier in [("u", 1e-6), ("n", 1e-9), ("p", 1e-12)]:
             if val >= multiplier:
                 reduced = val / multiplier
+                reduced = round(reduced, 6)  # Avoid float precision issues
                 if reduced.is_integer():
                     return f"{int(reduced)}{suffix}"
                 return f"{reduced:.1f}{suffix}"
 
+    val = round(val, 6)  # Avoid float precision issues
     # Fallback for plain ohms (100R)
     if val.is_integer():
         return str(int(val))

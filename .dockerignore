@@ -1,0 +1,22 @@
+# Git
+.git
+.gitignore
+
+# Python / Environment
+venv
+__pycache__
+*.pyc
+.pytest_cache
+.mypy_cache
+mypy.ini
+pytest.ini
+
+# Testing & Dev
+tests
+requirements-dev.txt
+.pre-commit-config.yaml
+.github
+
+# Output / Temp
+output
+*.DS_Store

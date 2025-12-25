@@ -354,34 +354,41 @@ def get_buy_details(category: str, val: str, count: int) -> Tuple[int, str]:
             if abs(fval - 1.0e-7) < 1.0e-9:
                 is_bypass_cap = True
 
+        # Explicitly type hint the list to keep mypy happy
+        note_parts: List[str] = []
+
         if is_bypass_cap:
             buy = count + 10
-            note = "Power filtering (buy bulk)."
+            note_parts = ["Power filtering (buy bulk)."]
         else:
             buy = count + 3
+            note_parts = []
 
         # Warn if > 10,000uF (0.01F) - Likely a parsing error (e.g. "1F")
         if fval is not None and fval > 0.01:
-            note = "⚠️ Suspicious Value (> 10mF). Verify BOM."
+            note_parts.append("⚠️ Suspicious Value (> 10mF).")
 
         # MATERIAL RECOMMENDATIONS
         if fval is not None:
             # 1. The Pico/Nano Range (<= 1nF)
             if fval <= 1.0e-9:
-                note += " | Rec: Monolithic Ceramic (MLCC)"
+                note_parts.append("Rec: Monolithic Ceramic (MLCC)")
 
             # 2. The Film Range (1nF < val < 1uF)
             elif 1.0e-9 < fval < 1.0e-6:
-                note += " | Rec: Box Film"
+                note_parts.append("Rec: Box Film")
 
             # 3. The Ambiguous 1uF Crossover (== 1uF)
             # Use small epsilon for float comparison safety
             elif abs(fval - 1.0e-6) < 1.0e-9:
-                note += " | Rec: Box Film (Check BOM: Could be Electrolytic)"
+                note_parts.append("Rec: Box Film (Check BOM: Could be Electrolytic)")
 
             # 4. The Power Range (> 1uF)
             else:
-                note += " | Rec: Electrolytic"
+                note_parts.append("Rec: Electrolytic")
+
+            # Join properly
+            note = " | ".join(note_parts)
 
     elif category == "Diodes":
         buy = max(10, count + 5)

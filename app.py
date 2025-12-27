@@ -205,7 +205,7 @@ if st.session_state.inventory and st.session_state.stats:
     # STEP D: Group by Section
     section_map = {"Parsed BOM": 0, "Recommended Extras": 1, "Missing/Critical": 2}
 
-    final_data.sort(key=lambda row: section_map.get(row["Section"], 99))
+    final_data.sort(key=lambda row: section_map.get(str(row["Section"]), 99))
 
     # 3. Render
     st.subheader("🛒 Master List")

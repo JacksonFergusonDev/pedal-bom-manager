@@ -299,7 +299,8 @@ if st.session_state.inventory:
         # Append context from Auto-Inject if present
         auto_inject_notes = sources.get("Auto-Inject", [])
 
-        if auto_inject_notes and section != "Missing/Critical":
+        # Check against source_type instead of the deleted 'section' variable
+        if auto_inject_notes and source_type != "Auto-Inject":
             # This handles "Smart Merge" cases (e.g. LED CLR merged into Resistors)
             formatted_notes = ", ".join(auto_inject_notes)
             note += f" | 🤖 {formatted_notes}"

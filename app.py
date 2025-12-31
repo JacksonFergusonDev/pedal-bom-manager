@@ -241,15 +241,15 @@ if st.session_state.inventory:
     # Phase 1.5 Refactor Filters
     with st.expander("⚙️ Advanced Options", expanded=False):
         c_filt1, c_filt2 = st.columns(2)
-        show_hardware = c_filt1.checkbox("Include Enclosures & Jacks", value=True)
+        show_hardware = c_filt1.checkbox("Include Hardware Kit", value=True)
         show_extras = c_filt2.checkbox("Include Sockets & Adapters", value=True)
 
-    # Explain the sections
+    # Explain the columns
     st.info("""
     **📋 List Key:**
-    * **Parsed BOM:** Components found directly in your text/CSV.
-    * **Recommended Extras:** IC Sockets, SMD adapters (Toggle in Options).
-    * **Missing/Critical:** Enclosures, Jacks, Switches auto-injected based on count.
+    * **Circuit Board:** Components found directly in your uploaded BOM.
+    * **Hardware Kit:** Enclosures, Jacks, and Switches auto-added based on your pedal count.
+    * **Extras:** Optional useful parts like IC Sockets and SMD adapters.
     """)
 
     # 2. Build the Shopping List

@@ -297,12 +297,12 @@ if st.session_state.inventory:
         buy_qty, note = get_buy_details(category, value, count)
 
         # Append context from Auto-Inject if present
-        if "Auto-Inject" in sources and section != "Missing/Critical":
-            # This handles the "Smart Merge" cases (e.g. LED CLR)
-            # We grab the note we stored in the source tag: "Auto-Inject (LED CLR)"
-            inject_notes = [s for s in sources["Auto-Inject"]]
-            if inject_notes:
-                note += f" [{', '.join(inject_notes)}]"
+        auto_inject_notes = sources.get("Auto-Inject", [])
+
+        if auto_inject_notes and section != "Missing/Critical":
+            # This handles "Smart Merge" cases (e.g. LED CLR merged into Resistors)
+            formatted_notes = ", ".join(auto_inject_notes)
+            note += f" | 🤖 {formatted_notes}"
 
         spec_type = get_spec_type(category, value)
         search_term = generate_search_term(category, value, spec_type)

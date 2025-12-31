@@ -286,24 +286,26 @@ if st.session_state.inventory:
         if is_extra and not show_extras:
             continue
 
-        # --- SOURCE TYPE ASSIGNMENT ---
+        # --- ORIGIN ASSIGNMENT ---
+        # Friendly names for the user
         if is_pure_hardware:
-            source_type = "Auto-Inject"
+            origin = "Hardware Kit"
         elif is_extra:
-            source_type = "Recommended"
+            origin = "Extras"
         else:
-            source_type = "BOM"
+            origin = "Circuit Board"
 
         buy_qty, note = get_buy_details(category, value, count)
 
         # Append context from Auto-Inject if present
         auto_inject_notes = sources.get("Auto-Inject", [])
 
-        # Check against source_type instead of the deleted 'section' variable
-        if auto_inject_notes and source_type != "Auto-Inject":
+        # Check against origin (using the new friendly label "Hardware Kit")
+        if auto_inject_notes and origin != "Hardware Kit":
             # This handles "Smart Merge" cases (e.g. LED CLR merged into Resistors)
+            # e.g. "🤖 Standard Part: LED CLR"
             formatted_notes = ", ".join(auto_inject_notes)
-            note += f" | 🤖 {formatted_notes}"
+            note += f" | 🤖 Standard Part: {formatted_notes}"
 
         spec_type = get_spec_type(category, value)
         search_term = generate_search_term(category, value, spec_type)
@@ -311,7 +313,7 @@ if st.session_state.inventory:
 
         final_data.append(
             {
-                "Source Type": source_type,
+                "Origin": origin,
                 "Category": category,
                 "Part": value,
                 "BOM Qty": count,
@@ -335,7 +337,7 @@ if st.session_state.inventory:
             "Buy Qty",
             "Notes",
             "Tayda_Link",
-            "Source Type",  # Moved to end as metadata
+            "Origin",
         ],
         column_config={
             "Tayda_Link": st.column_config.LinkColumn(
@@ -369,7 +371,7 @@ if st.session_state.inventory:
         "Notes",
         "Search Term",
         "Tayda_Link",
-        "Source Type",
+        "Origin",
     ]
     writer = csv.DictWriter(csv_buf, fieldnames=fields)
     writer.writeheader()

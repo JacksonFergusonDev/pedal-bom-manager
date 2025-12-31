@@ -683,9 +683,9 @@ def sort_inventory(inventory: InventoryType) -> List[Tuple[str, PartData]]:
         "Diodes",
         "Potentiometers",
         "Switches",
-        "Hardware/Misc",
         "Capacitors",
         "Resistors",
+        "Hardware/Misc",
     ]
     # Map name to index for sorting
     pmap = {name: i for i, name in enumerate(order)}

@@ -238,40 +238,71 @@ if st.session_state.inventory:
     else:
         st.success("✅ Clean parse. No weird leftovers.")
 
+    # Phase 1.5 Refactor Filters
+    with st.expander("⚙️ Advanced Options", expanded=False):
+        c_filt1, c_filt2 = st.columns(2)
+        show_hardware = c_filt1.checkbox("Include Enclosures & Jacks", value=True)
+        show_extras = c_filt2.checkbox("Include Sockets & Adapters", value=True)
+
     # Explain the sections
     st.info("""
     **📋 List Key:**
     * **Parsed BOM:** Components found directly in your text/CSV.
-    * **Recommended Extras:** IC Sockets, SMD adapters, and optional build aids.
-    * **Missing/Critical:** Essential hardware (Enclosures, Jacks, Switches) auto-injected based on your Pedal Count.
+    * **Recommended Extras:** IC Sockets, SMD adapters (Toggle in Options).
+    * **Missing/Critical:** Enclosures, Jacks, Switches auto-injected based on count.
     """)
 
     # 2. Build the Shopping List
     final_data = []
 
-    # STEP A: Inject Hardware & Smart Merge
-    # Calculate total pedal count by summing the Qty of all slots
+    # STEP A: Inject Hardware (Mutates Inventory In-Place)
     calc_pedal_count = sum(
         slot.get("count", 1) for slot in st.session_state.pedal_slots
     )
-    hardware_list = get_standard_hardware(inventory, calc_pedal_count)
+    # No return value, just mutation
+    get_standard_hardware(inventory, calc_pedal_count)
 
-    # STEP B: Process the (now updated) Inventory
+    # STEP B: Process the Unified Inventory
     sorted_parts = sort_inventory(inventory)
 
     for part_key, item in sorted_parts:
         if " | " not in part_key:
             continue
+
         category, value = part_key.split(" | ", 1)
         count = item["qty"]
+        sources = item["sources"]
 
-        # Determine Section
-        section = "Parsed BOM"
-        # Move auto-injected sockets/adapters to Extras
-        if "SOCKET" in value or "ADAPTER" in value:
+        # --- FILTERING LOGIC ---
+
+        # Check if this is PURELY an auto-injected item (no parsed sources)
+        is_pure_hardware = len(sources) == 1 and "Auto-Inject" in sources
+
+        if is_pure_hardware and not show_hardware:
+            continue
+
+        # Check for Extras (Sockets/Adapters)
+        is_extra = "SOCKET" in value or "ADAPTER" in value
+        if is_extra and not show_extras:
+            continue
+
+        # --- SECTION ASSIGNMENT ---
+        if is_pure_hardware:
+            section = "Missing/Critical"
+        elif is_extra:
             section = "Recommended Extras"
+        else:
+            section = "Parsed BOM"
 
         buy_qty, note = get_buy_details(category, value, count)
+
+        # Append context from Auto-Inject if present
+        if "Auto-Inject" in sources and section != "Missing/Critical":
+            # This handles the "Smart Merge" cases (e.g. LED CLR)
+            # We grab the note we stored in the source tag: "Auto-Inject (LED CLR)"
+            inject_notes = [s for s in sources["Auto-Inject"]]
+            if inject_notes:
+                note += f" [{', '.join(inject_notes)}]"
 
         spec_type = get_spec_type(category, value)
         search_term = generate_search_term(category, value, spec_type)
@@ -290,10 +321,8 @@ if st.session_state.inventory:
             }
         )
 
-    # STEP C: Append the Missing Hardware List
-    final_data.extend(hardware_list)
-
-    # STEP D: Group by Section
+    # STEP C: Group by Section
+    # (Hardware extension logic is removed as it's now upstream)
     section_map = {"Parsed BOM": 0, "Recommended Extras": 1, "Missing/Critical": 2}
 
     final_data.sort(key=lambda row: section_map.get(str(row["Section"]), 99))

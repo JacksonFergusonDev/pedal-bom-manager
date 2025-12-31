@@ -286,13 +286,13 @@ if st.session_state.inventory:
         if is_extra and not show_extras:
             continue
 
-        # --- SECTION ASSIGNMENT ---
+        # --- SOURCE TYPE ASSIGNMENT ---
         if is_pure_hardware:
-            section = "Missing/Critical"
+            source_type = "Auto-Inject"
         elif is_extra:
-            section = "Recommended Extras"
+            source_type = "Recommended"
         else:
-            section = "Parsed BOM"
+            source_type = "BOM"
 
         buy_qty, note = get_buy_details(category, value, count)
 
@@ -310,7 +310,7 @@ if st.session_state.inventory:
 
         final_data.append(
             {
-                "Section": section,
+                "Source Type": source_type,
                 "Category": category,
                 "Part": value,
                 "BOM Qty": count,
@@ -321,35 +321,30 @@ if st.session_state.inventory:
             }
         )
 
-    # STEP C: Group by Section
-    # (Hardware extension logic is removed as it's now upstream)
-    section_map = {"Parsed BOM": 0, "Recommended Extras": 1, "Missing/Critical": 2}
-
-    final_data.sort(key=lambda row: section_map.get(str(row["Section"]), 99))
-
     # 3. Render
     st.subheader("🛒 Master List")
 
-    # Configure the dataframe to show Section first
+    # Configure the dataframe
     st.dataframe(
         final_data,
         column_order=[
-            "Section",
             "Category",
             "Part",
             "BOM Qty",
             "Buy Qty",
             "Notes",
             "Tayda_Link",
+            "Source Type",  # Moved to end as metadata
         ],
         column_config={
             "Tayda_Link": st.column_config.LinkColumn(
-                "Buy Link",  # Column Header
-                display_text="🔍 Buy",  # Cell Text (Hides the URL)
+                "Buy Link",
+                display_text="🔍 Buy",
                 help="Search on Tayda Electronics",
             ),
         },
         use_container_width=True,
+        hide_index=True,  # Cleaner look
     )
 
     # 4. Downloads
@@ -366,7 +361,6 @@ if st.session_state.inventory:
     # CSV Generation
     csv_buf = io.StringIO()
     fields = [
-        "Section",
         "Category",
         "Part",
         "BOM Qty",
@@ -374,6 +368,7 @@ if st.session_state.inventory:
         "Notes",
         "Search Term",
         "Tayda_Link",
+        "Source Type",
     ]
     writer = csv.DictWriter(csv_buf, fieldnames=fields)
     writer.writeheader()

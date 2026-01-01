@@ -159,6 +159,22 @@ def expand_refs(ref_raw: str) -> List[str]:
     return refs
 
 
+def normalize_value_by_category(category: str, val_raw: str) -> str:
+    """
+    Standardizes values so BOM and Stock keys match.
+    e.g. Resistors "10k" -> "10k", "10,000" -> "10k"
+    """
+    clean_val = val_raw.strip()
+
+    # Only normalize Passives (Resistors/Caps)
+    if category in ("Resistors", "Capacitors"):
+        fval = parse_value_to_float(clean_val)
+        if fval is not None:
+            clean_val = float_to_search_string(fval)
+
+    return clean_val
+
+
 def categorize_part(
     ref: str, val: str
 ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
@@ -266,13 +282,8 @@ def categorize_part(
         category = "ICs"
         injection = "Hardware/Misc | 8 PIN DIP SOCKET"
 
-    # Only normalize Passives (Resistors/Caps) to avoid mangling Transistors
-    # (e.g., preventing "2N5457" from becoming "2")
-    if category in ("Resistors", "Capacitors"):
-        fval = parse_value_to_float(val_clean)
-        if fval is not None:
-            val_clean = float_to_search_string(fval)
-            val_up = val_clean.upper()
+    # Use centralized normalizer
+    val_clean = normalize_value_by_category(category, val_clean)
 
     return category, val_clean, injection
 
@@ -967,3 +978,67 @@ def parse_pedalpcb_pdf(
         stats["residuals"].append(f"PDF Parse Error: {e}")
 
     return inventory, stats
+
+
+def parse_user_inventory(filepath: str) -> InventoryType:
+    """
+    Parses a user's stock CSV (Category, Part, Qty).
+    Uses strict value normalization to match BOM keys.
+    """
+    stock: InventoryType = defaultdict(
+        lambda: {"qty": 0, "refs": [], "sources": defaultdict(list)}
+    )
+
+    with open(filepath, "r", encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            # Flexible column names
+            row_clean = {k.lower(): v for k, v in row.items() if k}
+
+            cat = row_clean.get("category", "").strip()
+            val = row_clean.get("part", "").strip()
+            qty_str = row_clean.get("qty", "0").strip()
+
+            if cat and val:
+                try:
+                    qty = int(qty_str)
+                except ValueError:
+                    continue
+
+                # IMPORTANT: Must use same normalizer as BOM parser
+                clean_val = normalize_value_by_category(cat, val)
+                key = f"{cat} | {clean_val}"
+
+                _record_part(stock, "User Stock", key, ref="", qty=qty)
+
+    return stock
+
+
+def calculate_net_needs(bom: InventoryType, stock: InventoryType) -> InventoryType:
+    """
+    Subtracts Stock from BOM to find what we actually need to buy.
+    Returns a new InventoryType containing only the deficits.
+    """
+    net_inv: InventoryType = defaultdict(
+        lambda: {"qty": 0, "refs": [], "sources": defaultdict(list)}
+    )
+
+    for key, data in bom.items():
+        gross_needed = data["qty"]
+
+        # Check stock
+        stock_data = stock.get(key)
+        in_stock = stock_data["qty"] if stock_data else 0
+
+        # The Math: (Need - Have), floored at 0
+        net_needed = max(0, gross_needed - in_stock)
+
+        # Preserve metadata, but update Qty to the Net Need
+        net_inv[key] = data.copy()
+        net_inv[key]["qty"] = net_needed
+
+        # Tag source for UI context
+        if in_stock > 0:
+            net_inv[key]["sources"]["Stock Check"].append(f"Have {in_stock}")
+
+    return net_inv

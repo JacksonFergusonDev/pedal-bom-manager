@@ -459,9 +459,9 @@ if st.session_state.inventory:
         # Note: We must use the values from the final_data row we just calculated
 
         # safely get numbers, defaulting to 0
-        current_stock = row.get("In Stock", 0)
-        buy_qty = row.get("Buy Qty", 0)
-        used_qty = row.get("BOM Qty", 0)
+        current_stock = cast(int, row.get("In Stock", 0))
+        buy_qty = cast(int, row.get("Buy Qty", 0))
+        used_qty = cast(int, row.get("BOM Qty", 0))
 
         # The Math
         new_qty = (current_stock + buy_qty) - used_qty

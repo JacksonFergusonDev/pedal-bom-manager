@@ -24,6 +24,8 @@ from src.bom_lib import (
     parse_with_verification,
     sort_inventory,
     parse_pedalpcb_pdf,
+    parse_user_inventory,
+    calculate_net_needs,
 )
 
 
@@ -144,6 +146,11 @@ for i, slot in enumerate(st.session_state.pedal_slots):
 st.button("➕ Add Another Pedal", on_click=add_slot)
 
 st.divider()
+st.subheader("2. Inventory Check (Optional)")
+stock_file = st.file_uploader(
+    "📂 Upload Stock CSV", type=["csv"], help="Columns: Category, Part, Qty"
+)
+st.divider()
 
 if st.button("Generate Master List", type="primary", use_container_width=True):
     inventory: InventoryType = defaultdict(
@@ -209,7 +216,22 @@ if st.button("Generate Master List", type="primary", use_container_width=True):
                     if os.path.exists(tmp_path):
                         os.remove(tmp_path)
 
+    # Process Stock if uploaded
+    stock_inventory = None
+    if stock_file:
+        # Save temp to parse
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp:
+            tmp.write(stock_file.getvalue())
+            tmp_path = tmp.name
+
+        try:
+            stock_inventory = parse_user_inventory(tmp_path)
+        finally:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+
     st.session_state.inventory = inventory
+    st.session_state.stock = stock_inventory  # Save to session
     st.session_state.stats = stats
     st.toast("Generated Master List!", icon="🎸")
 
@@ -263,14 +285,39 @@ if st.session_state.inventory:
     get_standard_hardware(inventory, calc_pedal_count)
 
     # STEP B: Process the Unified Inventory
-    sorted_parts = sort_inventory(inventory)
+    stock = st.session_state.get("stock")
+
+    # If stock exists, we calculate net needs, otherwise net = gross
+    if stock:
+        # Calculate Net Needs (Deficit)
+        net_inventory = calculate_net_needs(inventory, stock)
+        # We iterate the ORIGINAL inventory to show everything,
+        # but we pull purchasing math from net_inventory
+        display_source = inventory
+    else:
+        display_source = inventory
+        net_inventory = inventory
+
+    sorted_parts = sort_inventory(display_source)
 
     for part_key, item in sorted_parts:
         if " | " not in part_key:
             continue
 
         category, value = part_key.split(" | ", 1)
-        count = item["qty"]
+
+        gross_qty = item["qty"]
+
+        # Lookup Net Need
+        net_item = net_inventory.get(part_key)
+        net_qty = net_item["qty"] if net_item else 0
+
+        # Lookup Stock for Display
+        in_stock = 0
+        if stock:
+            s_item = stock.get(part_key)
+            in_stock = s_item["qty"] if s_item else 0
+
         sources = item["sources"]
 
         # --- FILTERING LOGIC ---
@@ -295,7 +342,8 @@ if st.session_state.inventory:
         else:
             origin = "Circuit Board"
 
-        buy_qty, note = get_buy_details(category, value, count)
+        # Nerd Economics applies to the NET need (Deficit)
+        buy_qty, note = get_buy_details(category, value, net_qty)
 
         # Append context from Auto-Inject if present
         auto_inject_notes = sources.get("Auto-Inject", [])
@@ -316,7 +364,9 @@ if st.session_state.inventory:
                 "Origin": origin,
                 "Category": category,
                 "Part": value,
-                "BOM Qty": count,
+                "BOM Qty": gross_qty,
+                "In Stock": in_stock,
+                "Net Need": net_qty,
                 "Buy Qty": buy_qty,
                 "Notes": note,
                 "Search Term": search_term,
@@ -334,6 +384,8 @@ if st.session_state.inventory:
             "Category",
             "Part",
             "BOM Qty",
+            "In Stock",
+            "Net Need",
             "Buy Qty",
             "Notes",
             "Tayda_Link",

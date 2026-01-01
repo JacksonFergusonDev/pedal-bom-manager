@@ -445,13 +445,52 @@ if st.session_state.inventory:
 
     csv_out = csv_buf.getvalue().encode("utf-8-sig")
 
-    st.download_button(
-        "Download CSV",
-        data=csv_out,
-        file_name="pedal_parts.csv",
-        mime="text/csv",
-        type="primary",
-    )
+    # Generate Updated Inventory (The Circular Economy)
+    stock_update_buf = io.StringIO()
+    # Matches the format expected by parse_user_inventory
+    stock_fields = ["Category", "Part", "Qty"]
+    stock_writer = csv.DictWriter(stock_update_buf, fieldnames=stock_fields)
+    stock_writer.writeheader()
+
+    for row in final_data:
+        # Logic: New Stock = (Old Stock + Buy Qty) - Used Qty
+        # Note: We must use the values from the final_data row we just calculated
+
+        # safely get numbers, defaulting to 0
+        current_stock = row.get("In Stock", 0)
+        buy_qty = row.get("Buy Qty", 0)
+        used_qty = row.get("BOM Qty", 0)
+
+        # The Math
+        new_qty = (current_stock + buy_qty) - used_qty
+
+        # Only save if we actually have stock left
+        if new_qty > 0:
+            stock_writer.writerow(
+                {"Category": row["Category"], "Part": row["Part"], "Qty": new_qty}
+            )
+
+    stock_update_csv = stock_update_buf.getvalue().encode("utf-8-sig")
+
+    c_dwn1, c_dwn2 = st.columns(2)
+
+    with c_dwn1:
+        st.download_button(
+            "🛒 Download Shopping List",
+            data=csv_out,
+            file_name="pedal_shopping_list.csv",
+            mime="text/csv",
+            type="primary",
+        )
+
+    with c_dwn2:
+        st.download_button(
+            "📦 Download Updated Inventory",
+            data=stock_update_csv,
+            file_name="my_inventory_updated.csv",
+            mime="text/csv",
+            help="Upload this file next time! It contains your stock levels minus what you used here, plus what you bought.",
+        )
 
 st.divider()
 

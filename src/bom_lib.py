@@ -568,6 +568,10 @@ def generate_tayda_url(search_term: str) -> str:
 
 def get_buy_details(category: str, val: str, count: int) -> Tuple[int, str]:
     """Applies 'Nerd Economics' to calculate buy quantity."""
+    # If we don't need any (Net Need <= 0), don't buy any.
+    if count <= 0:
+        return 0, ""
+
     buy = count
     note = ""
 

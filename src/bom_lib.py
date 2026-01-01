@@ -1041,8 +1041,4 @@ def calculate_net_needs(bom: InventoryType, stock: InventoryType) -> InventoryTy
         net_inv[key] = data.copy()
         net_inv[key]["qty"] = net_needed
 
-        # Tag source for UI context
-        if in_stock > 0:
-            net_inv[key]["sources"]["Stock Check"].append(f"Have {in_stock}")
-
     return net_inv

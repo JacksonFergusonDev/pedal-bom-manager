@@ -277,6 +277,46 @@ def categorize_part(
     return category, val_clean, injection
 
 
+def _record_part(
+    inventory: InventoryType, source: str, key: str, ref: str, qty: int = 1
+) -> None:
+    """Low-level dictionary update helper."""
+    inventory[key]["qty"] += qty
+    # Only track refs if provided (avoids empty strings for stock items)
+    if ref:
+        inventory[key]["refs"].append(ref)
+        inventory[key]["sources"][source].append(ref)
+
+
+def ingest_bom_line(
+    inventory: InventoryType, source: str, ref_raw: str, val_raw: str
+) -> int:
+    """
+    Central Logic Kernel:
+    Expands ranges (R1-R4) -> Categorizes -> Injects Hardware -> Updates Dict.
+    Returns: Number of parts found.
+    """
+    parts_found = 0
+    expanded_refs = expand_refs(ref_raw)
+
+    for r in expanded_refs:
+        cat, clean_val, inj = categorize_part(r, val_raw)
+
+        if cat:
+            parts_found += 1
+            main_key = f"{cat} | {clean_val}"
+
+            # 1. Record Main Part
+            _record_part(inventory, source, main_key, r)
+
+            # 2. Handle Auto-Injection (e.g. Sockets)
+            if inj:
+                # inj is pre-formatted as "Category | Value"
+                _record_part(inventory, source, inj, f"{r} (Inj)")
+
+    return parts_found
+
+
 def parse_with_verification(
     bom_list: List[str], source_name: str = "Manual Input"
 ) -> Tuple[InventoryType, StatsDict]:
@@ -322,27 +362,9 @@ def parse_with_verification(
                 ref_raw = match.group(1).upper()
                 val_raw = match.group(2)
 
-                refs = expand_refs(ref_raw)
-
-                # Process all refs found on this line
-                line_has_part = False
-                for r in refs:
-                    cat, val, inj = categorize_part(r, val_raw)
-
-                    if cat:
-                        key = f"{cat} | {val}"
-                        inventory[key]["qty"] += 1
-                        inventory[key]["refs"].append(r)
-                        inventory[key]["sources"][source_name].append(r)
-
-                        if inj:
-                            inventory[inj]["qty"] += 1
-                            inventory[inj]["sources"][source_name].append(f"{r} (Inj)")
-
-                        stats["parts_found"] += 1
-                        line_has_part = True
-
-                if line_has_part:
+                count = ingest_bom_line(inventory, source_name, ref_raw, val_raw)
+                if count > 0:
+                    stats["parts_found"] += count
                     success = True
 
             if not success:
@@ -380,22 +402,10 @@ def parse_csv_bom(filepath: str, source_name: str) -> Tuple[InventoryType, Stats
 
             success = False
             if ref and val:
-                expanded_refs = expand_refs(ref)
-
-                for r in expanded_refs:
-                    cat, clean_val, inj = categorize_part(r, val)
-                    if cat:
-                        key = f"{cat} | {clean_val}"
-                        inventory[key]["qty"] += 1
-                        inventory[key]["refs"].append(r)
-                        inventory[key]["sources"][source_name].append(r)
-
-                        if inj:
-                            inventory[inj]["qty"] += 1
-                            inventory[inj]["sources"][source_name].append(f"{r} (Inj)")
-
-                        stats["parts_found"] += 1
-                        success = True
+                count = ingest_bom_line(inventory, source_name, ref, val)
+                if count > 0:
+                    stats["parts_found"] += count
+                    success = True
 
             if not success:
                 stats["residuals"].append(str(row))
@@ -941,25 +951,13 @@ def parse_pedalpcb_pdf(
                             continue
 
                         # Categorize
-                        expanded_refs = expand_refs(ref_raw)
-                        row_parsed = False  # Reset flag for this row
+                        count = ingest_bom_line(
+                            inventory, source_name, ref_raw, val_raw
+                        )
 
-                        for r in expanded_refs:
-                            cat, clean_val, inj = categorize_part(r, val_raw)
-                            if cat:
-                                row_parsed = True  # We found at least one valid part!
-
-                                key = f"{cat} | {clean_val}"
-                                inventory[key]["qty"] += 1
-                                inventory[key]["refs"].append(r)
-                                inventory[key]["sources"][source_name].append(r)
-
-                                if inj:
-                                    inventory[inj]["qty"] += 1
-                                    inventory[inj]["sources"][source_name].append(
-                                        f"{r} (Inj)"
-                                    )
-                                stats["parts_found"] += 1
+                        if count > 0:
+                            stats["parts_found"] += count
+                            row_parsed = True
 
                         # If the loop finishes and we never found a valid part category:
                         if not row_parsed:

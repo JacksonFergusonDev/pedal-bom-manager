@@ -454,7 +454,7 @@ if (
     if stock:
         fields[3:3] = ["In Stock", "Net Need"]
 
-    writer = csv.DictWriter(csv_buf, fieldnames=fields)
+    writer = csv.DictWriter(csv_buf, fieldnames=fields, extrasaction="ignore")
     writer.writeheader()
 
     # LOGIC: Conditional Formatting

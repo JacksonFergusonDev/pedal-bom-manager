@@ -165,6 +165,10 @@ for i, slot in enumerate(st.session_state.pedal_slots):
                 slot["data"] = BOM_PRESETS[selected_preset]
                 slot["last_loaded_preset"] = selected_preset
 
+                # Force update the widget state so the text area reflects the change immediately
+                if f"text_preset_{slot['id']}" in st.session_state:
+                    st.session_state[f"text_preset_{slot['id']}"] = slot["data"]
+
                 # Update name if it matches the old preset or is generic
                 if not slot["name"] or slot["name"] == last_loaded:
                     slot["name"] = selected_preset

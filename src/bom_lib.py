@@ -952,25 +952,32 @@ def parse_pedalpcb_pdf(
                         continue
 
                     # Normalized headers to find columns
-                    # Handle cases where headers might be None or empty strings
                     headers = [str(h).upper().strip() for h in table[0] if h]
 
-                    # Heuristic: Flexible Header Matching
-                    # We need one "Ref-like" column and one "Value-like" column
                     loc_idx = -1
                     val_idx = -1
+                    start_row_idx = 1  # Default: skip header row
 
+                    # 1. Try to find explicit headers
                     for i, h in enumerate(headers):
                         if h in ("LOCATION", "REF", "DESIGNATOR", "PART"):
                             loc_idx = i
                         elif h in ("VALUE", "VAL", "DESCRIPTION"):
                             val_idx = i
 
+                    # 2. Fallback: If no headers found, assume Headless Mode (Col 0=Ref, Col 1=Val)
+                    # This handles docs like SpiritBox.pdf where the table is just data.
                     if loc_idx == -1 or val_idx == -1:
-                        continue
+                        # Sanity check: Table must have at least 2 columns
+                        if len(table[0]) >= 2:
+                            loc_idx = 0
+                            val_idx = 1
+                            start_row_idx = 0  # CRITICAL: Don't skip the first row!
+                        else:
+                            continue
 
-                    # Process Rows (Skip header)
-                    for row in table[1:]:
+                    # Process Rows
+                    for row in table[start_row_idx:]:
                         stats["lines_read"] += 1
 
                         # Handle potential None cells or short rows

@@ -129,6 +129,16 @@ for i, slot in enumerate(st.session_state.pedal_slots):
             label_visibility="collapsed",
         )
 
+        # State Reset on Method Change
+        # We track 'last_method' to detect when the user switches modes
+        if slot.get("last_method") != slot["method"]:
+            if slot["method"] == "Paste Text":
+                slot["data"] = ""  # Clear old preset data
+            elif slot["method"] == "Preset":
+                slot["last_loaded_preset"] = None  # Force preset to re-load
+
+            slot["last_method"] = slot["method"]
+
         # Data Input
         if slot["method"] == "Paste Text":
             slot["data"] = c4.text_area(

@@ -134,11 +134,17 @@ for i, slot in enumerate(st.session_state.pedal_slots):
         c1, c2, c3, c4, c5 = st.columns([3, 1, 2, 4, 1])
 
         # Project Name
+        name_key = f"name_{slot['id']}"
+        # Only pass 'value' if the key isn't in session state to avoid the warning
+        name_kwargs = (
+            {"value": slot["name"]} if name_key not in st.session_state else {}
+        )
+
         slot["name"] = c1.text_input(
             f"Project Name #{i + 1}",
-            value=slot["name"],
-            key=f"name_{slot['id']}",
+            key=name_key,
             placeholder=f"e.g. {PLACEHOLDERS[i % len(PLACEHOLDERS)]}",
+            **name_kwargs,
         )
 
         # Quantity

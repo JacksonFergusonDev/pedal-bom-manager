@@ -1013,57 +1013,118 @@ def parse_pedalpcb_pdf(
                                 stats["parts_found"] += count
 
             # --- STRATEGY 3: HAIL MARY (RAW TEXT) ---
-            # If tables failed to yield parts (e.g. SpiritBox), scan raw text.
             if stats["parts_found"] == 0:
                 stats["residuals"].append(
                     "Tables yielded 0 parts. Attempting Raw Text Scan..."
                 )
 
-                # Robust Pattern: Looks for "Ref Value" pairs anywhere in the line.
-                # Ref: 1-4 uppercase letters followed by digits (R1, IC1, SW100).
-                # Val: Any non-whitespace characters (10k, 100n, TL072).
-                # This handles lines like "R1 10k" AND "R1 10k C1 100n"
-                regex = re.compile(r"(?P<ref>[A-Z]{1,4}\d+)\s+(?P<val>[^\s]+)")
+                # Keywords for Pots/Switches that lack numbers (e.g. "VOLUME", "GAIN")
+                # We sort them by length (desc) to match longest first (e.g. "VOLUME" before "VOL")
+                keywords = [
+                    "VOLUME",
+                    "MASTER",
+                    "LEVEL",
+                    "GAIN",
+                    "DRIVE",
+                    "DIST",
+                    "FUZZ",
+                    "DIRT",
+                    "TONE",
+                    "TREBLE",
+                    "BASS",
+                    "MID",
+                    "MIDS",
+                    "PRESENCE",
+                    "CONTOUR",
+                    "WIDTH",
+                    "DEPTH",
+                    "RATE",
+                    "SPEED",
+                    "COLOR",
+                    "TEXTURE",
+                    "BIAS",
+                    "ATTACK",
+                    "DECAY",
+                    "SUSTAIN",
+                    "RELEASE",
+                    "THRESH",
+                    "COMP",
+                    "MIX",
+                    "BLEND",
+                    "DRY",
+                    "WET",
+                    "REPEATS",
+                    "TIME",
+                    "FEEDBACK",
+                    "FILTER",
+                    "CUT",
+                    "BOOST",
+                    "RANGE",
+                    "VOICE",
+                    "NATURE",
+                ]
+                kw_regex = "|".join(keywords)
+
+                # Regex Pattern:
+                # Group 1 (Ref): Either (Standard Ref like R1, IC1) OR (Keyword like GAIN)
+                # Group 2 (Val): The value (e.g. 100k, TL072, B100k)
+                # \s+ matches spaces OR NEWLINES (bridging the gap between lines)
+                regex = re.compile(
+                    rf"(?P<ref>\b(?:[A-Z]{{1,4}}\d+)|(?:{kw_regex}))\s+(?P<val>[^\s]+)",
+                    re.IGNORECASE,
+                )
 
                 for page in pdf.pages:
                     text = page.extract_text()
                     if not text:
                         continue
 
-                    for line in text.splitlines():
-                        # Use finditer to catch MULTIPLE parts on a single line
-                        # e.g. "R1 1M   C1 100n" -> Matches both pairs
-                        for match in regex.finditer(line):
-                            ref_str = match.group("ref")
-                            val_str = match.group("val")
+                    # CRITICAL: We scan the full text blob, NOT line-by-line.
+                    # This allows 'IC1\nTL072' to match as Ref=IC1, Val=TL072.
+                    for match in regex.finditer(text):
+                        ref_str = match.group("ref").upper()
+                        val_str = match.group("val")
 
-                            # Filter out obvious false positives
-                            # Ref must start with standard prefix to be safe
-                            if not any(
-                                ref_str.startswith(p)
-                                for p in (
-                                    "R",
-                                    "C",
-                                    "D",
-                                    "Q",
-                                    "IC",
-                                    "U",
-                                    "SW",
-                                    "POT",
-                                    "VR",
-                                )
-                            ):
-                                continue
+                        # Filter out garbage matches
+                        # 1. Length check on Value
+                        if len(val_str) > 20 or len(val_str) < 1:
+                            continue
 
-                            # Value sanity check (ignore if extremely long)
-                            if len(val_str) > 20:
-                                continue
+                        # 2. Skip if Value is just a common word (false positives from text blob)
+                        if val_str.upper() in [
+                            "RESISTORS",
+                            "CAPACITORS",
+                            "DIODES",
+                            "ICS",
+                            "POTENTIOMETERS",
+                            "PARTS",
+                            "LIST",
+                        ]:
+                            continue
 
-                            c = ingest_bom_line(
-                                inventory, source_name, ref_str, val_str
+                        # 3. Prefix Safety Check (Only for standard Refs, not Keywords)
+                        is_keyword = ref_str in keywords
+                        if not is_keyword:
+                            valid_prefixes = (
+                                "R",
+                                "C",
+                                "D",
+                                "Q",
+                                "IC",
+                                "U",
+                                "SW",
+                                "POT",
+                                "VR",
+                                "Q",
+                                "J",
+                                "T",
                             )
-                            if c > 0:
-                                stats["parts_found"] += c
+                            if not any(ref_str.startswith(p) for p in valid_prefixes):
+                                continue
+
+                        c = ingest_bom_line(inventory, source_name, ref_str, val_str)
+                        if c > 0:
+                            stats["parts_found"] += c
 
     except Exception as e:
         stats["residuals"].append(f"PDF Parse Error: {e}")

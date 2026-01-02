@@ -60,11 +60,8 @@ def generate_presets():
 
         try:
             # 1. Parse
-            stats_debug = {}  # Store stats to print later if needed
-
             if ext.lower() == ".pdf":
                 inventory, stats = parse_pedalpcb_pdf(filepath, "ingest")
-                stats_debug = stats
 
                 if stats["parts_found"] == 0:
                     status = "Skipped"

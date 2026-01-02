@@ -26,7 +26,6 @@ BOM_PRESETS = {
         C24 100p
         C25 1u
         C26 22n
-        CONTROLS AND FEATURES
         D1 1N4148
         D2 1N4148
         D3 1N5817
@@ -85,7 +84,6 @@ BOM_PRESETS = {
         C20 1u
         C21 1u
         C22 47u
-        CONTROLS AND FEATURES
         D1 GE
         D2 GE
         D3 1N4742
@@ -128,5 +126,203 @@ BOM_PRESETS = {
         R31 1M
         TREBLE B10K
         VOLUME B10K
+    """,
+    "Paperscratcher-Pedalpcb": """
+        C1 1u
+        C2 1n
+        C3 10u
+        C4 10u
+        C5 10u
+        C6 10u
+        C7 1u
+        C8 18n
+        C9 150p
+        C10 18n
+        C11 10u
+        C100 100u
+        C101 100n
+        C102 100u
+        C103 100u
+        C104 100n
+        D1 1N4148
+        D2 1N4148
+        D100 1N5817
+        FUZZ B10K
+        IC1 OPA1678
+        Q1 2N3904
+        Q2 2N3904
+        Q3 2N3904
+        Q4 2N5088
+        R1 2.2M
+        R2 2.2M
+        R3 1k
+        R4 47k
+        R5 430k
+        R6 43k
+        R7 10k
+        R8 390
+        R9 390
+        R10 430k
+        R11 43k
+        R12 10k
+        R13 390
+        R14 11k
+        R15 2.7k
+        R16 10k
+        R17 390
+        R18 22k
+        R19 4.7k
+        R20 4.7k
+        R21 22k
+        R22 100k
+        R23 100
+        R100 47
+        R101 4.7k
+        R102 16k
+        R103 22k
+        R104 10k
+        RIP A100K
+        TONE B50K
+        VOL A100K
+    """,
+    "Pedalpcb-Muffinfactory": """
+        C1 100n
+        C2 22n
+        C3 560p
+        C4 100n
+        C5 22n
+        C6 100n
+        C7 22n
+        C8 100n
+        C9 47n
+        C10 560p
+        C11 100n
+        C12 22n
+        C13 100n
+        C14 47n
+        C15 560p
+        C16 6.8n
+        C17 39n
+        C18 100n
+        C19 10n
+        C20 100n
+        C21 22n
+        C22 100n
+        C23 100n
+        C100 100u
+        D1 1N914
+        D2 1N914
+        D3 GE
+        D4 1N914
+        D5 GE
+        D6 1N914
+        D7 3mm
+        D8 3mm
+        D100 1N5817
+        DIP1 DIP-5
+        DIP2 DIP-5
+        DIP3 DIP-5
+        DIP4 DIP-5
+        Q1 2N5088
+        Q2 106NU70
+        Q3 MPSA18
+        Q4 106NU70
+        Q5 MPSA18
+        Q6 2N5088
+        R1 1M
+        R2 47k
+        R3 110k
+        R4 82k
+        R5 390k
+        R6 39k
+        R7 390
+        R8 1k
+        R9 11k
+        R10 33k
+        R11 82k
+        R12 1.3M
+        R13 560k
+        R14 120
+        R15 12k
+        R16 1.2k
+        R17 15k
+        R18 18k
+        R19 82k
+        R20 910k
+        R21 680k
+        R22 120
+        R23 22k
+        R24 1.2k
+        R25 130k
+        R26 56k
+        R27 130k
+        R28 100k
+        R29 56k
+        R30 390k
+        R31 100k
+        R32 12k
+        R33 2.7k
+        R34 180
+        R35 18k
+        R100 4.7k
+        SUSTAIN B100K
+        SW1 DPDT
+        SW2 DPDT
+        SW5 SPDT
+        SW6 SPDT
+        TONE B100K
+        VOLUME A100K
+    """,
+    "Spiritbox": """
+        ATTACK B10K
+        C1 100n
+        C2 1u
+        C3 2.2u
+        C4 470n
+        C5 470n
+        C6 10u
+        C7 470n
+        C8 1n
+        C9 2.2n
+        C10 100n
+        C11 10n
+        C12 100n
+        C13 100n
+        C14 100n
+        C15 10u
+        C16 100n
+        C17 100u
+        C100 100u
+        C101 10u
+        D100 1N5817
+        DEPTH B2K
+        IC1 TL072
+        IC2 BTDR-2H
+        IC3 L78L05
+        IC4 TL072
+        IC5 PT2399
+        IC6 L78L05
+        R1 1M
+        R2 1M
+        R3 12k
+        R4 10k
+        R5 10k
+        R6 470
+        R7 100k
+        R8 22k
+        R9 10k
+        R10 10k
+        R11 22k
+        R12 33k
+        R13 10k
+        R14 15k
+        R15 10k
+        R16 15k
+        R17 15k
+        R18 1k
+        R19 22k
+        R100 4.7k
+        R101 10k
+        R102 10k
     """,
 }

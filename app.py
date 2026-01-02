@@ -196,6 +196,10 @@ if st.button("Generate Master List", type="primary", use_container_width=True):
             # Cast to UploadedFile so Pylance knows it has .name and .getvalue()
             f = cast(UploadedFile, slot.get("data"))
             if f:
+                # CRITICAL: Reset cursor to start.
+                # If the file was read in a previous run, the cursor is at the end.
+                f.seek(0)
+
                 ext = os.path.splitext(f.name)[1].lower()
                 with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
                     tmp.write(f.getvalue())
@@ -250,15 +254,11 @@ if st.button("Generate Master List", type="primary", use_container_width=True):
         st.toast("Generated Master List!", icon="🎸")
 
 # Main Process
-if (
-    st.session_state.inventory
-    and st.session_state.stats
-    and st.session_state.stats["parts_found"] > 0
-):
+if st.session_state.inventory and st.session_state.stats:
     inventory = cast(InventoryType, st.session_state.inventory)
     stats = cast(StatsDict, st.session_state.stats)
 
-    # 1. Show Stats
+    # 1. Show Stats (Always show to help debug)
     with st.container():
         c1, c2, c3 = st.columns(3)
         c1.metric("Lines Scanned", stats["lines_read"])
@@ -267,6 +267,10 @@ if (
         c3.metric("Unique SKUs", unique_parts)
 
     st.divider()
+
+    # Stop here if empty
+    if stats["parts_found"] == 0:
+        st.stop()
 
     # Check for junk
     suspicious = get_residual_report(stats)

@@ -447,6 +447,11 @@ def get_residual_report(stats: StatsDict) -> List[str]:
     suspicious: List[str] = []
 
     for line in stats["residuals"]:
+        # Always passthrough explicit errors
+        if "ERROR" in line.upper() or "EXCEPTION" in line.upper():
+            suspicious.append(line)
+            continue
+
         upper = line.upper()
         is_header = any(w in upper for w in safe_words)
 
@@ -933,6 +938,9 @@ def parse_pedalpcb_pdf(
         with pdfplumber.open(filepath) as pdf:
             for page in pdf.pages:
                 tables = page.extract_tables()
+
+                if not tables:
+                    stats["residuals"].append("PDF Warning: No tables found on page.")
 
                 for table in tables:
                     # Header Check

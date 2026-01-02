@@ -1018,8 +1018,8 @@ def parse_pedalpcb_pdf(
                     "Tables yielded 0 parts. Attempting Raw Text Scan..."
                 )
 
-                # Keywords for Pots/Switches that lack numbers (e.g. "VOLUME", "GAIN")
-                # We sort them by length (desc) to match longest first (e.g. "VOLUME" before "VOL")
+                # Keywords: Added word boundaries (\b) to prevent partial matches
+                # e.g. "COMP" should not match "COMPONENTS"
                 keywords = [
                     "VOLUME",
                     "MASTER",
@@ -1063,48 +1063,68 @@ def parse_pedalpcb_pdf(
                     "VOICE",
                     "NATURE",
                 ]
-                kw_regex = "|".join(keywords)
+                # Join with \b wrapper
+                kw_regex = "|".join([rf"\b{k}\b" for k in keywords])
 
                 # Regex Pattern:
-                # Group 1 (Ref): Either (Standard Ref like R1, IC1) OR (Keyword like GAIN)
-                # Group 2 (Val): The value (e.g. 100k, TL072, B100k)
-                # \s+ matches spaces OR NEWLINES (bridging the gap between lines)
+                # Group 1 (Ref): Standard Ref (R1) OR Keyword (GAIN)
+                # Group 2 (Val): The value
                 regex = re.compile(
-                    rf"(?P<ref>\b(?:[A-Z]{{1,4}}\d+)|(?:{kw_regex}))\s+(?P<val>[^\s]+)",
+                    rf"(?P<ref>\b[A-Z]{{1,4}}\d+\b|{kw_regex})\s+(?P<val>[^\s]+)",
                     re.IGNORECASE,
                 )
+
+                # Garbage Filter: Values to explicitly ignore
+                ignore_values = [
+                    "RESISTORS",
+                    "CAPACITORS",
+                    "DIODES",
+                    "ICS",
+                    "POTENTIOMETERS",
+                    "PARTS",
+                    "LIST",
+                    "VALUE",
+                    "LOCATION",
+                    "TYPE",
+                    "RATING",
+                    "COMPONENTS",
+                    "OFFBOARD",
+                    "ENCLOSURE",
+                    "FOOTSWITCH",
+                    "JACKS",
+                    "FEATURES",
+                    "CONTROLS",
+                    "AND",
+                    "THE",
+                    "OF",
+                ]
 
                 for page in pdf.pages:
                     text = page.extract_text()
                     if not text:
                         continue
 
-                    # CRITICAL: We scan the full text blob, NOT line-by-line.
-                    # This allows 'IC1\nTL072' to match as Ref=IC1, Val=TL072.
                     for match in regex.finditer(text):
                         ref_str = match.group("ref").upper()
                         val_str = match.group("val")
 
-                        # Filter out garbage matches
-                        # 1. Length check on Value
+                        # 1. Clean Value (Strip parentheses, etc)
+                        # e.g. "(1/4W)" -> "1/4W"
+                        val_str = val_str.strip("()[]")
+
+                        # 2. Filter Garbage Matches
                         if len(val_str) > 20 or len(val_str) < 1:
                             continue
 
-                        # 2. Skip if Value is just a common word (false positives from text blob)
-                        if val_str.upper() in [
-                            "RESISTORS",
-                            "CAPACITORS",
-                            "DIODES",
-                            "ICS",
-                            "POTENTIOMETERS",
-                            "PARTS",
-                            "LIST",
-                        ]:
+                        # Check against blacklist
+                        if any(bad in val_str.upper() for bad in ignore_values):
                             continue
 
-                        # 3. Prefix Safety Check (Only for standard Refs, not Keywords)
+                        # 3. Prefix Safety Check
                         is_keyword = ref_str in keywords
                         if not is_keyword:
+                            # Must look like a real component (R1, C1, IC1, etc)
+                            # Added 'SW' and 'P' to catch oddities
                             valid_prefixes = (
                                 "R",
                                 "C",
@@ -1115,9 +1135,10 @@ def parse_pedalpcb_pdf(
                                 "SW",
                                 "POT",
                                 "VR",
-                                "Q",
                                 "J",
                                 "T",
+                                "L",
+                                "P",
                             )
                             if not any(ref_str.startswith(p) for p in valid_prefixes):
                                 continue

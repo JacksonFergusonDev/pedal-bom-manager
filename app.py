@@ -116,6 +116,42 @@ def update_from_preset(slot_id):
         slot["last_loaded_preset"] = new_preset
 
 
+def on_method_change(slot_id):
+    """Callback: Handle input method switches (Paste/Upload/Preset)."""
+    slot = next((s for s in st.session_state.pedal_slots if s["id"] == slot_id), None)
+    if not slot:
+        return
+
+    # Get the new method from the widget state
+    new_method = st.session_state.get(f"method_{slot_id}")
+
+    # Case: Switch to Paste Text -> Clear Data
+    if new_method == "Paste Text":
+        slot["data"] = ""
+        # Clear the text area widget state to ensure it shows empty
+        if f"text_{slot_id}" in st.session_state:
+            st.session_state[f"text_{slot_id}"] = ""
+
+    # Case: Switch to Preset -> Load Default
+    elif new_method == "Preset":
+        first_preset = sorted(list(BOM_PRESETS.keys()))[0]
+        slot["data"] = BOM_PRESETS[first_preset]
+        slot["last_loaded_preset"] = first_preset
+
+        # Auto-fill name if empty
+        if not slot["name"]:
+            slot["name"] = first_preset
+            # Update the widget key directly so it renders correctly immediately
+            st.session_state[f"name_{slot_id}"] = first_preset
+
+        # Ensure the preset text area is populated
+        st.session_state[f"text_preset_{slot_id}"] = slot["data"]
+
+    # Update slot tracking
+    slot["method"] = new_method
+    slot["last_method"] = new_method
+
+
 st.divider()
 st.subheader("1. Project Config")
 
@@ -163,36 +199,29 @@ for i, slot in enumerate(st.session_state.pedal_slots):
             key=f"method_{slot['id']}",
             horizontal=True,
             label_visibility="collapsed",
+            on_change=on_method_change,
+            args=(slot["id"],),
         )
-
-        # State Reset on Method Change
-        # We track 'last_method' to detect when the user switches modes
-        if slot.get("last_method") != slot["method"]:
-            if slot["method"] == "Paste Text":
-                slot["data"] = ""  # Clear old preset data
-            elif slot["method"] == "Preset":
-                # Auto-load the first preset so the box isn't empty
-                first_preset = sorted(list(BOM_PRESETS.keys()))[0]
-                slot["data"] = BOM_PRESETS[first_preset]
-                slot["last_loaded_preset"] = first_preset
-
-                # Auto-fill name if empty
-                if not slot["name"]:
-                    slot["name"] = first_preset
-
-            slot["last_method"] = slot["method"]
-            st.rerun()  # Force reload so the text area and name populate immediately
 
         # Data Input
         if slot["method"] == "Paste Text":
+            # Apply the conditional value pattern to avoid state warnings
+            text_key = f"text_{slot['id']}"
+            area_kwargs = (
+                {"value": slot.get("data", "")}
+                if text_key not in st.session_state
+                else {}
+            )
+
             slot["data"] = c4.text_area(
                 "BOM Text",
                 height=100,
-                key=f"text_{slot['id']}",
+                key=text_key,
                 label_visibility="collapsed",
                 placeholder="Paste your BOM here...",
-                value=slot.get("data", ""),
+                **area_kwargs,
             )
+
         elif slot["method"] == "Upload File":
             slot["data"] = c4.file_uploader(
                 "Upload BOM",

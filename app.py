@@ -165,9 +165,17 @@ for i, slot in enumerate(st.session_state.pedal_slots):
             if slot["method"] == "Paste Text":
                 slot["data"] = ""  # Clear old preset data
             elif slot["method"] == "Preset":
-                slot["last_loaded_preset"] = None  # Force preset to re-load
+                # Auto-load the first preset so the box isn't empty
+                first_preset = sorted(list(BOM_PRESETS.keys()))[0]
+                slot["data"] = BOM_PRESETS[first_preset]
+                slot["last_loaded_preset"] = first_preset
+
+                # Auto-fill name if empty
+                if not slot["name"]:
+                    slot["name"] = first_preset
 
             slot["last_method"] = slot["method"]
+            st.rerun()  # Force reload so the text area and name populate immediately
 
         # Data Input
         if slot["method"] == "Paste Text":

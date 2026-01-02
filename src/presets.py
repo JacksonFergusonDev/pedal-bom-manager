@@ -26,6 +26,7 @@ BOM_PRESETS = {
         C24 100p
         C25 1u
         C26 22n
+        CONTROLS AND FEATURES
         D1 1N4148
         D2 1N4148
         D3 1N5817
@@ -84,6 +85,7 @@ BOM_PRESETS = {
         C20 1u
         C21 1u
         C22 47u
+        CONTROLS AND FEATURES
         D1 GE
         D2 GE
         D3 1N4742

@@ -930,7 +930,9 @@ def parse_pedalpcb_pdf(
 ) -> Tuple[InventoryType, StatsDict]:
     """
     Parses a PedalPCB Build Document (PDF).
-    Extracts the BOM table using visual line detection.
+    Strategy 1: Visual Table Extraction (Lines)
+    Strategy 2: Visual Table Extraction (Text/Whitespace)
+    Strategy 3: Raw Text Regex (Hail Mary)
     """
     inventory: InventoryType = defaultdict(
         lambda: {"qty": 0, "refs": [], "sources": defaultdict(list)}
@@ -939,36 +941,45 @@ def parse_pedalpcb_pdf(
 
     try:
         with pdfplumber.open(filepath) as pdf:
+            # --- STRATEGY 1 & 2: TABLES ---
             for page in pdf.pages:
+                # A. Try Standard Extraction (Grid Lines)
                 tables = page.extract_tables()
 
+                # B. Fallback: Text-Based Extraction (Whitespace Gutters)
                 if not tables:
-                    stats["residuals"].append("PDF Warning: No tables found on page.")
+                    tables = page.extract_tables(
+                        table_settings={
+                            "vertical_strategy": "text",
+                            "horizontal_strategy": "text",
+                            "intersection_x_tolerance": 15,
+                        }
+                    )
+
+                if not tables:
+                    stats["residuals"].append(
+                        f"Page {page.page_number}: No tables found."
+                    )
 
                 for table in tables:
-                    # Header Check
-                    # Row 0 usually contains ["LOCATION", "VALUE", "TYPE", "NOTES"]
                     if not table:
                         continue
 
-                    # Normalized headers to find columns
+                    # Header Detection & Column Mapping
                     headers = [str(h).upper().strip() for h in table[0] if h]
 
                     loc_idx = -1
                     val_idx = -1
                     start_row_idx = 1
 
-                    # 1. Try to find explicit headers
+                    # explicit headers
                     for i, h in enumerate(headers):
                         if h in ("LOCATION", "REF", "DESIGNATOR", "PART"):
                             loc_idx = i
                         elif h in ("VALUE", "VAL", "DESCRIPTION"):
                             val_idx = i
 
-                    # 2. Fallback: Headless Mode
-                    # If headers are missing, default to Cols 0 and 1.
-                    # We do NOT check len(table[0]) because the first row might be
-                    # a single-column section header (e.g. "RESISTORS").
+                    # headless fallback (Col 0=Ref, Col 1=Val)
                     if loc_idx == -1 or val_idx == -1:
                         loc_idx = 0
                         val_idx = 1
@@ -977,43 +988,61 @@ def parse_pedalpcb_pdf(
                     # Process Rows
                     for row in table[start_row_idx:]:
                         stats["lines_read"] += 1
-
-                        # Handle potential None cells
                         row_safe = [str(cell) if cell else "" for cell in row]
 
                         ref_raw = ""
                         val_raw = ""
 
-                        # Strategy A: Standard Columns (We have enough columns)
+                        # Normal Row
                         if len(row_safe) > max(loc_idx, val_idx):
                             ref_raw = row_safe[loc_idx].replace("\n", " ").strip()
                             val_raw = row_safe[val_idx].replace("\n", " ").strip()
 
-                        # Strategy B: Merged Column (1 column found, but we expected 2)
-                        # This happens if pdfplumber misses the separator in older docs.
+                        # Merged Row (Single column "R1 10k")
                         elif len(row_safe) == 1 and row_safe[0]:
-                            # Try splitting "R1 1M" into ["R1", "1M"]
                             parts = row_safe[0].strip().split(None, 1)
                             if len(parts) == 2:
                                 ref_raw = parts[0].strip()
                                 val_raw = parts[1].strip()
 
-                        # If neither strategy worked, skip row
-                        if not ref_raw or not val_raw:
-                            continue
+                        if ref_raw and val_raw:
+                            count = ingest_bom_line(
+                                inventory, source_name, ref_raw, val_raw
+                            )
+                            if count > 0:
+                                stats["parts_found"] += count
 
-                        # Categorize
-                        count = ingest_bom_line(
-                            inventory, source_name, ref_raw, val_raw
-                        )
+            # --- STRATEGY 3: HAIL MARY (RAW TEXT) ---
+            # If tables failed to yield parts (e.g. SpiritBox), scan raw text.
+            if stats["parts_found"] == 0:
+                stats["residuals"].append(
+                    "Tables yielded 0 parts. Attempting Raw Text Scan..."
+                )
 
-                        if count > 0:
-                            stats["parts_found"] += count
-                            row_parsed = True
+                # Pattern: Starts with Ref (R1, C10), space, Value.
+                # Regex looks for: Start of line, (R/C/D/Q/IC/SW + digits), space, (Value)
+                regex = re.compile(
+                    r"^\s*(?P<ref>[RCDQ]|IC|SW|Q)\d+\s+(?P<val>.+)$", re.MULTILINE
+                )
 
-                        # If the loop finishes and we never found a valid part category:
-                        if not row_parsed:
-                            stats["residuals"].append(f"| {ref_raw} | {val_raw} |")
+                for page in pdf.pages:
+                    text = page.extract_text()
+                    if not text:
+                        continue
+
+                    for line in text.splitlines():
+                        match = regex.match(line)
+                        if match:
+                            ref_str = match.group("ref")
+                            val_str = match.group("val")
+
+                            # Sanity check: Value shouldn't be a sentence
+                            if len(val_str) < 30:
+                                c = ingest_bom_line(
+                                    inventory, source_name, ref_str, val_str
+                                )
+                                if c > 0:
+                                    stats["parts_found"] += c
 
     except Exception as e:
         stats["residuals"].append(f"PDF Parse Error: {e}")

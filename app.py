@@ -10,7 +10,6 @@ from streamlit.runtime.uploaded_file_manager import UploadedFile
 import gspread
 import streamlit as st
 from google.oauth2.service_account import Credentials
-from src.presets import BOM_PRESETS
 
 from src.bom_lib import (
     InventoryType,
@@ -123,7 +122,7 @@ for i, slot in enumerate(st.session_state.pedal_slots):
         # Input Method
         slot["method"] = c3.radio(
             "Input Method",
-            ["Paste Text", "Upload File"],
+            ["Paste Text", "Upload File", "Preset"],
             key=f"method_{slot['id']}",
             horizontal=True,
             label_visibility="collapsed",
@@ -139,13 +138,33 @@ for i, slot in enumerate(st.session_state.pedal_slots):
                 placeholder="Paste your BOM here...",
                 value=slot.get("data", ""),
             )
-        else:
+        elif slot["method"] == "Upload File":
             slot["data"] = c4.file_uploader(
                 "Upload BOM",
                 type=["csv", "pdf"],
                 key=f"file_{slot['id']}",
                 label_visibility="collapsed",
             )
+
+        elif slot["method"] == "Preset":
+            selected_preset = c4.selectbox(
+                "Select a Build",
+                options=list(BOM_PRESETS.keys()),
+                key=f"preset_select_{slot['id']}",
+                label_visibility="collapsed",
+            )
+
+            if selected_preset:
+                raw_bom = BOM_PRESETS[selected_preset]
+                slot["data"] = raw_bom
+
+                # Auto-fill Name if empty
+                if not slot["name"]:
+                    slot["name"] = selected_preset
+                    st.rerun()
+
+            with c4.expander("View Preset BOM", expanded=False):
+                st.code(slot["data"], language="text")
 
         # Remove Button
         if len(st.session_state.pedal_slots) > 1:

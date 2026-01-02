@@ -70,7 +70,7 @@ if "stats" not in st.session_state:
 # Initialize Slots
 if "pedal_slots" not in st.session_state:
     init_slots: List[Dict[str, Any]] = [
-        {"id": str(uuid.uuid4()), "name": "My Pedal Project", "method": "Paste Text"}
+        {"id": str(uuid.uuid4()), "name": "", "method": "Paste Text"}
     ]
     st.session_state.pedal_slots = init_slots
 
@@ -88,7 +88,16 @@ def remove_slot(idx):
 st.divider()
 st.subheader("1. Project Config")
 
-# Dynamic Slot UI
+# Placeholder Examples
+PLACEHOLDERS = [
+    "Big Muff",
+    "Pro Co RAT",
+    "Fuzz Face",
+    "Tube Screamer",
+    "Klon Centaur",
+    "Tone Bender",
+]
+
 for i, slot in enumerate(st.session_state.pedal_slots):
     with st.container():
         c1, c2, c3, c4, c5 = st.columns([3, 1, 2, 4, 1])
@@ -98,7 +107,7 @@ for i, slot in enumerate(st.session_state.pedal_slots):
             f"Project Name #{i + 1}",
             value=slot["name"],
             key=f"name_{slot['id']}",
-            placeholder="e.g. Big Muff",
+            placeholder=f"e.g. {PLACEHOLDERS[i % len(PLACEHOLDERS)]}",
         )
 
         # Quantity

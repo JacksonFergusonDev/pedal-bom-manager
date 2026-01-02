@@ -242,10 +242,19 @@ if st.button("Generate Master List", type="primary", use_container_width=True):
     st.session_state.inventory = inventory
     st.session_state.stock = stock_inventory  # Save to session
     st.session_state.stats = stats
-    st.toast("Generated Master List!", icon="🎸")
+
+    # Validation Logic (Change 3)
+    if stats["parts_found"] == 0:
+        st.error("❌ No parts found! Check your BOM text or file.")
+    else:
+        st.toast("Generated Master List!", icon="🎸")
 
 # Main Process
-if st.session_state.inventory:
+if (
+    st.session_state.inventory
+    and st.session_state.stats
+    and st.session_state.stats["parts_found"] > 0
+):
     inventory = cast(InventoryType, st.session_state.inventory)
     stats = cast(StatsDict, st.session_state.stats)
 
@@ -386,20 +395,26 @@ if st.session_state.inventory:
     # 3. Render
     st.subheader("🛒 Master List")
 
+    # Dynamic Columns (Change 1)
+    display_cols = [
+        "Category",
+        "Part",
+        "BOM Qty",
+        "Buy Qty",
+        "Notes",
+        "Tayda_Link",
+        "Origin",
+    ]
+
+    # Only add Stock columns if stock was actually provided
+    if stock:
+        # Insert them after BOM Qty
+        display_cols[3:3] = ["In Stock", "Net Need"]
+
     # Configure the dataframe
     st.dataframe(
         final_data,
-        column_order=[
-            "Category",
-            "Part",
-            "BOM Qty",
-            "In Stock",
-            "Net Need",
-            "Buy Qty",
-            "Notes",
-            "Tayda_Link",
-            "Origin",
-        ],
+        column_order=display_cols,
         column_config={
             "Tayda_Link": st.column_config.LinkColumn(
                 "Buy Link",
@@ -424,18 +439,21 @@ if st.session_state.inventory:
 
     # CSV Generation
     csv_buf = io.StringIO()
+
+    # Dynamic Fields for CSV to match UI
     fields = [
         "Category",
         "Part",
         "BOM Qty",
-        "In Stock",
-        "Net Need",
         "Buy Qty",
         "Notes",
         "Search Term",
         "Tayda_Link",
         "Origin",
     ]
+    if stock:
+        fields[3:3] = ["In Stock", "Net Need"]
+
     writer = csv.DictWriter(csv_buf, fieldnames=fields)
     writer.writeheader()
 

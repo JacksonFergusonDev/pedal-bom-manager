@@ -148,6 +148,7 @@ for i, slot in enumerate(st.session_state.pedal_slots):
             )
 
         elif slot["method"] == "Preset":
+            # 1. The Selector
             selected_preset = c4.selectbox(
                 "Select a Build",
                 options=list(BOM_PRESETS.keys()),
@@ -155,17 +156,29 @@ for i, slot in enumerate(st.session_state.pedal_slots):
                 label_visibility="collapsed",
             )
 
-            if selected_preset:
-                raw_bom = BOM_PRESETS[selected_preset]
-                slot["data"] = raw_bom
+            # 2. Change Detection Logic
+            # We track the last loaded preset to know when to overwrite the text
+            last_loaded = slot.get("last_loaded_preset")
 
-                # Auto-fill Name if empty
-                if not slot["name"]:
+            if selected_preset != last_loaded:
+                # User just switched presets! Overwrite the data.
+                slot["data"] = BOM_PRESETS[selected_preset]
+                slot["last_loaded_preset"] = selected_preset
+
+                # Update name if it matches the old preset or is generic
+                if not slot["name"] or slot["name"] == last_loaded:
                     slot["name"] = selected_preset
                     st.rerun()
 
-            with c4.expander("View Preset BOM", expanded=False):
-                st.code(slot["data"], language="text")
+            # 3. The Editable Text Area
+            # We display the data exactly like "Paste Text" mode so it can be modified
+            slot["data"] = c4.text_area(
+                "BOM Text",
+                height=100,
+                key=f"text_preset_{slot['id']}",
+                label_visibility="collapsed",
+                value=slot.get("data", ""),
+            )
 
         # Remove Button
         if len(st.session_state.pedal_slots) > 1:

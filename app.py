@@ -176,12 +176,21 @@ for i, slot in enumerate(st.session_state.pedal_slots):
 
             # 3. The Editable Text Area
             # We display the data exactly like "Paste Text" mode so it can be modified
+            text_key = f"text_preset_{slot['id']}"
+
+            # Only pass 'value' if the key isn't in session state to avoid the warning
+            area_kwargs = (
+                {"value": slot.get("data", "")}
+                if text_key not in st.session_state
+                else {}
+            )
+
             slot["data"] = c4.text_area(
                 "BOM Text",
                 height=100,
-                key=f"text_preset_{slot['id']}",
+                key=text_key,
                 label_visibility="collapsed",
-                value=slot.get("data", ""),
+                **area_kwargs,
             )
 
         # Remove Button

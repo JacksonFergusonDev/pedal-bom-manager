@@ -664,7 +664,7 @@ def get_buy_details(category: str, val: str, count: int) -> Tuple[int, str]:
 
     elif category == "ICs":
         buy = count + 1
-        note = "Audio Chip (Socket added)"
+        note = "Socket Recommended"
         # Suggest mods
         clean = re.sub(r"(CP|CN|P|N)$", "", val)
         if clean in IC_ALTS:

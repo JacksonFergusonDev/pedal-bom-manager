@@ -60,6 +60,14 @@ def generate_presets():
 
             if inventory:
                 clean_text = flatten_inventory_to_text(inventory)
+
+                # Check for empty results
+                if not clean_text.strip():
+                    print(
+                        f"      ⚠️  Warning: {filename} resulted in empty BOM. Skipping."
+                    )
+                    continue
+
                 display_name = name.replace("_", " ").title()
                 presets[display_name] = clean_text
                 print(f"Processed: {display_name}")

@@ -10,6 +10,7 @@ from streamlit.runtime.uploaded_file_manager import UploadedFile
 import gspread
 import streamlit as st
 from google.oauth2.service_account import Credentials
+from src.presets import BOM_PRESETS
 
 from src.bom_lib import (
     InventoryType,
@@ -172,8 +173,8 @@ if st.button("Generate Master List", type="primary", use_container_width=True):
         source = slot["name"] if slot["name"].strip() else "Untitled Project"
         qty_multiplier = slot.get("count", 1)
 
-        # A. Paste Text Mode
-        if slot["method"] == "Paste Text":
+        # A. Paste Text Mode (and Presets)
+        if slot["method"] in ["Paste Text", "Preset"]:
             raw = slot.get("data", "")
             if raw:
                 p_inv, p_stats = parse_with_verification([raw], source_name=source)

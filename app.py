@@ -10,6 +10,7 @@ from streamlit.runtime.uploaded_file_manager import UploadedFile
 import gspread
 import streamlit as st
 from google.oauth2.service_account import Credentials
+from src.presets import BOM_PRESETS
 
 from src.bom_lib import (
     InventoryType,

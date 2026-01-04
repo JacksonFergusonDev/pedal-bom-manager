@@ -102,6 +102,15 @@ def remove_slot(idx):
     st.session_state.pedal_slots.pop(idx)
 
 
+def merge_inventory(master_inv, new_inv, multiplier):
+    """Merges a parsed BOM into the master inventory with a quantity multiplier."""
+    for key, data in new_inv.items():
+        master_inv[key]["qty"] += data["qty"] * multiplier
+        master_inv[key]["refs"].extend(data["refs"])
+        for src, refs in data["sources"].items():
+            master_inv[key]["sources"][src].extend(refs * multiplier)
+
+
 @st.cache_data
 def get_preset_metadata():
     """
@@ -461,13 +470,7 @@ if st.button("Generate Master List", type="primary", use_container_width=True):
                 p_inv, p_stats = parse_with_verification([raw], source_name=source)
 
                 # Merge
-                for key, data in p_inv.items():
-                    # Multiply quantity by the slot's pedal count
-                    inventory[key]["qty"] += data["qty"] * qty_multiplier
-                    inventory[key]["refs"].extend(data["refs"])
-                    for src, refs in data["sources"].items():
-                        # Multiply the list of refs by the count (e.g. ['R1'] * 2 = ['R1', 'R1'])
-                        inventory[key]["sources"][src].extend(refs * qty_multiplier)
+                merge_inventory(inventory, p_inv, qty_multiplier)
 
                 stats["lines_read"] += p_stats["lines_read"]
                 stats["parts_found"] += p_stats["parts_found"]
@@ -496,13 +499,7 @@ if st.button("Generate Master List", type="primary", use_container_width=True):
                         p_inv, p_stats = parse_csv_bom(tmp_path, source_name=source)
 
                     # Merge
-                    for key, data in p_inv.items():
-                        # Multiply quantity by the slot's pedal count
-                        inventory[key]["qty"] += data["qty"] * qty_multiplier
-                        inventory[key]["refs"].extend(data["refs"])
-                        for src, refs in data["sources"].items():
-                            # Multiply the list of refs by the count (e.g. ['R1'] * 2 = ['R1', 'R1'])
-                            inventory[key]["sources"][src].extend(refs * qty_multiplier)
+                    merge_inventory(inventory, p_inv, qty_multiplier)
 
                     stats["lines_read"] += p_stats["lines_read"]
                     stats["parts_found"] += p_stats["parts_found"]

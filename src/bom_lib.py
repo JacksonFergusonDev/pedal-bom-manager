@@ -592,6 +592,21 @@ def generate_tayda_url(search_term: str) -> str:
     return f"https://www.taydaelectronics.com/catalogsearch/result/?q={encoded}"
 
 
+def generate_pedalpcb_url(search_term: str) -> str:
+    """
+    Creates a clickable search link for PedalPCB.
+    Strips ' PCB' from the end to ensure better search results.
+    """
+    if not search_term:
+        return ""
+
+    # Clean the term: "Muffin Fuzz PCB" -> "Muffin Fuzz"
+    clean_term = search_term.replace(" PCB", "").strip()
+
+    encoded = quote_plus(clean_term)
+    return f"https://www.pedalpcb.com/?product_cat=&s={encoded}&post_type=product"
+
+
 def get_buy_details(category: str, val: str, count: int) -> Tuple[int, str]:
     """Applies 'Nerd Economics' to calculate buy quantity."""
     # If we don't need any (Net Need <= 0), don't buy any.

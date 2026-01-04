@@ -67,7 +67,13 @@ def generate_presets():
                 path_parts = ["Misc"]
 
             # Construct a clean Key: "[Source] [Category] Name"
-            source = path_parts[0].capitalize() if path_parts else "Unsorted"
+            raw_source = path_parts[0] if path_parts else "Unsorted"
+            # Special case for branding
+            if raw_source.lower() == "pedalpcb":
+                source = "PedalPCB"
+            else:
+                source = raw_source.capitalize()
+
             category = path_parts[1].capitalize() if len(path_parts) > 1 else ""
 
             # 2. Process File & Determine Name

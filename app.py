@@ -253,11 +253,33 @@ def update_from_preset(slot_id):
         # Force the text area to reflect this new data
         st.session_state[f"text_preset_{slot_id}"] = slot["data"]
 
+        # Helper to format clean name: "Name - Source"
+        def get_clean_name(raw_key):
+            if not raw_key:
+                return ""
+            match = re.match(r"^\[(.*?)\] (?:\[(.*?)\] )?(.*)$", raw_key)
+            if match:
+                src = match.group(1)
+                name = match.group(3)
+                return f"{name} - {src}"
+            return raw_key
+
         # 2. Update Name (Only if empty or matches previous preset)
-        last_loaded = slot.get("last_loaded_preset")
-        if not slot["name"] or slot["name"] == last_loaded:
-            slot["name"] = new_preset
-            st.session_state[f"name_{slot_id}"] = new_preset
+        last_loaded_key = slot.get("last_loaded_preset")
+
+        # We compare against the formatted version of the LAST key to see if we should overwrite
+        # (i.e. if the user hasn't manually changed it from the last auto-generated name)
+        current_name = slot["name"]
+        should_update = (
+            not current_name
+            or current_name == get_clean_name(last_loaded_key)
+            or current_name == last_loaded_key
+        )
+
+        if should_update:
+            clean_name = get_clean_name(new_preset)
+            slot["name"] = clean_name
+            st.session_state[f"name_{slot_id}"] = clean_name
 
         # 3. Update Tracking
         slot["last_loaded_preset"] = new_preset

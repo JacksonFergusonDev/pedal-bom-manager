@@ -67,18 +67,12 @@ def generate_presets():
                 path_parts = ["Misc"]
 
             # Construct a clean Key: "[Source] [Category] Name"
-            # Format: "PedalPCB - Fuzz - Big Muff"
             source = path_parts[0].capitalize() if path_parts else "Unsorted"
             category = path_parts[1].capitalize() if len(path_parts) > 1 else ""
 
-            # Build the Display Key
-            if category:
-                key = f"[{source}] [{category}] {filename_no_ext}"
-            else:
-                key = f"[{source}] {filename_no_ext}"
-
-            # 2. Process File
+            # 2. Process File & Determine Name
             final_text = ""
+            project_name = filename_no_ext  # Default fallback
 
             if file.lower().endswith(".txt"):
                 # CASE A: Tayda / Raw Text
@@ -92,11 +86,16 @@ def generate_presets():
                 # Parse it, then serialize it back to text
                 print(f"   ⚙️ Parsing PDF: {file}")
                 try:
-                    # We use the key as the source_name
-                    inv, stats = parse_pedalpcb_pdf(file_path, source_name=key)
+                    # Pass a temporary source name, we will refine the key later
+                    inv, stats = parse_pedalpcb_pdf(file_path, source_name=project_name)
 
                     if stats["parts_found"] > 0:
                         final_text = serialize_inventory(inv)
+
+                        # Use extracted title if available
+                        if stats.get("extracted_title"):
+                            project_name = stats["extracted_title"].strip()
+                            print(f"      ↳ Found Title: {project_name}")
                     else:
                         print(f"   ⚠️ Skipping {file}: No parts found.")
                         continue
@@ -104,8 +103,13 @@ def generate_presets():
                     print(f"   ❌ Error parsing {file}: {e}")
                     continue
 
-            # 3. Add to Dict
+            # 3. Build Final Key and Add to Dict
             if final_text:
+                if category:
+                    key = f"[{source}] [{category}] {project_name}"
+                else:
+                    key = f"[{source}] {project_name}"
+
                 presets[key] = final_text
 
     # 4. Write Output

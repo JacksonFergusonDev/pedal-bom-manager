@@ -28,6 +28,8 @@ from src.bom_lib import (
     calculate_net_needs,
 )
 
+st.set_page_config(page_title="Pedal BOM Manager", page_icon="🎸")
+
 
 # ttl="1h" to prevent stale token issues
 @st.cache_resource(ttl="1h")
@@ -55,8 +57,6 @@ def save_feedback(rating, text):
     row = [str(datetime.datetime.now()), rating, text]
     sheet.append_row(row)
 
-
-st.set_page_config(page_title="Pedal BOM Manager", page_icon="🎸")
 
 st.title("🎸 Guitar Pedal BOM Manager")
 st.markdown("""

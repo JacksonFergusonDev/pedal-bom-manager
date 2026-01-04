@@ -397,6 +397,23 @@ def parse_with_verification(
             if not success:
                 stats["residuals"].append(line)
 
+            # If it wasn't a standard part, check if it's a PCB.
+            # We look for "PCB" anywhere in the line, but ignore pure headers.
+            if not success and "PCB" in line.upper():
+                # Ignore if the line is JUST "PCB" (common header)
+                if line.strip().upper() == "PCB":
+                    continue
+
+                clean_name = line.strip()
+                key = f"PCB | {clean_name}"
+
+                inventory[key]["qty"] += 1
+                if "PCB" not in inventory[key]["sources"][source_name]:
+                    inventory[key]["sources"][source_name].append("PCB")
+
+                stats["parts_found"] += 1
+                success = True
+
     return inventory, stats
 
 

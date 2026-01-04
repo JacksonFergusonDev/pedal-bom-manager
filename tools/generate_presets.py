@@ -93,8 +93,9 @@ def generate_presets():
                         final_text = serialize_inventory(inv)
 
                         # Use extracted title if available
-                        if stats.get("extracted_title"):
-                            project_name = stats["extracted_title"].strip()
+                        extracted = stats.get("extracted_title")
+                        if extracted:
+                            project_name = extracted.strip()
                             print(f"      ↳ Found Title: {project_name}")
                     else:
                         print(f"   ⚠️ Skipping {file}: No parts found.")

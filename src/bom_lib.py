@@ -354,7 +354,6 @@ def parse_with_verification(
 
     for raw_text in bom_list:
         lines = raw_text.strip().split("\n")
-        pcb_mode = False
 
         for line in lines:
             line = line.strip()
@@ -362,17 +361,25 @@ def parse_with_verification(
                 continue
             stats["lines_read"] += 1
 
-            # Catch "PCB" header lines
-            if line.upper() == "PCB":
-                pcb_mode = True
-                continue
-            if pcb_mode:
-                clean_name = re.sub(r"^PCB\s+", "", line, flags=re.IGNORECASE).strip()
+            # Check for PCB Definition (Prefix "PCB" + Value)
+            # Supports: "PCB <tab> Name" (Tayda) and "PCB Name" (PedalPCB)
+            parts = line.split(None, 1)
+            if parts and parts[0].upper() == "PCB":
+                # Case A: Header Line "PCB" (Tayda style) -> Skip it
+                if len(parts) == 1:
+                    continue
+
+                # Case B: Data Line "PCB <Value>" -> Record it
+                clean_name = parts[1].strip()
                 key = f"PCB | {clean_name}"
+
+                # Manual Record (bypassing ingest_bom_line regex)
                 inventory[key]["qty"] += 1
-                inventory[key]["sources"][source_name].append("PCB")
+                # Track source
+                if "PCB" not in inventory[key]["sources"][source_name]:
+                    inventory[key]["sources"][source_name].append("PCB")
+
                 stats["parts_found"] += 1
-                pcb_mode = False
                 continue
 
             match = pattern.match(line)

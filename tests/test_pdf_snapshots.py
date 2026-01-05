@@ -18,13 +18,11 @@ def stabilize_inventory(inventory):
     to ensure JSON output is deterministic (stable) for comparison.
     """
     stable = {}
-    # Sort keys to ensure order doesn't trigger false diffs
     for key in sorted(inventory.keys()):
         data = inventory[key]
         stable[key] = {
             "qty": data["qty"],
             "refs": sorted(data["refs"]),
-            # Convert inner defaultdict to dict
             "sources": {k: sorted(v) for k, v in data["sources"].items()},
         }
     return stable
@@ -46,28 +44,34 @@ def save_snapshot(filename, data):
         json.dump(data, f, indent=2, sort_keys=True)
 
 
-# 🔍 Gather all PDFs in the samples folder
-# This generates a test case for every .pdf file automatically
-pdf_files = (
-    [f for f in os.listdir(SAMPLES_DIR) if f.endswith(".pdf")]
-    if os.path.exists(SAMPLES_DIR)
-    else []
-)
+# 🔍 Gather all PDFs in the samples folder (Recursive)
+pdf_files = []
+if os.path.exists(SAMPLES_DIR):
+    for root, dirs, files in os.walk(SAMPLES_DIR):
+        for file in files:
+            if file.endswith(".pdf"):
+                # We store the full relative path so pytest can find it later
+                # e.g. "dirty/Muffin_Fuzz.pdf"
+                rel_path = os.path.relpath(os.path.join(root, file), SAMPLES_DIR)
+                pdf_files.append(rel_path)
 
 
-@pytest.mark.parametrize("pdf_filename", pdf_files)
-def test_pdf_parsing_regression(pdf_filename):
+@pytest.mark.parametrize("pdf_rel_path", pdf_files)
+def test_pdf_parsing_regression(pdf_rel_path):
     """
     Runs the real parser against a real PDF and compares result to stored snapshot.
     """
-    pdf_path = os.path.join(SAMPLES_DIR, pdf_filename)
-    snapshot_name = f"{pdf_filename}.json"
+    # Reconstruct full path
+    pdf_path = os.path.join(SAMPLES_DIR, pdf_rel_path)
 
-    # 1. Run the REAL Code (No Mocks!)
-    # We use a generic source name because we just care about parsing accuracy
+    # Flatten the snapshot filename: "dirty/Muffin_Fuzz.pdf" -> "dirty__Muffin_Fuzz.pdf.json"
+    # This keeps the snapshots folder flat but organized by name
+    snapshot_filename = pdf_rel_path.replace(os.sep, "__") + ".json"
+
+    # 1. Run the REAL Code
     inventory, stats = parse_pedalpcb_pdf(pdf_path, source_name="SnapshotTest")
 
-    # 2. Stabilize Data for Comparison
+    # 2. Stabilize Data
     current_result = {
         "metadata": {
             "parts_found": stats["parts_found"],
@@ -76,20 +80,15 @@ def test_pdf_parsing_regression(pdf_filename):
         "inventory": stabilize_inventory(inventory),
     }
 
-    # 3. Load previous snapshot
-    expected_result = load_snapshot(snapshot_name)
+    # 3. Load & Compare
+    expected_result = load_snapshot(snapshot_filename)
 
-    # 4. The "Golden Master" Logic
     if expected_result is None:
-        # First time running this PDF? Save it and fail (so you look at it).
-        save_snapshot(snapshot_name, current_result)
+        save_snapshot(snapshot_filename, current_result)
         pytest.fail(
-            f"📸 New snapshot created for {pdf_filename}. Please inspect {snapshot_name} manually to verify correctness."
+            f"📸 New snapshot created for {pdf_rel_path}. Please inspect {snapshot_filename} manually."
         )
 
-    # 5. Compare
-    # If this fails, it means the parser output CHANGED.
-    # You either broke the parser, or you improved it and need to update the snapshot.
     assert current_result == expected_result, (
-        f"⚠️ Output mismatch for {pdf_filename}. Parser behavior changed!"
+        f"⚠️ Output mismatch for {pdf_rel_path}. Parser behavior changed!"
     )

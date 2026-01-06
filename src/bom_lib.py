@@ -20,7 +20,7 @@ MULTIPLIERS = {
 }
 
 # Core Component Designators (IPC Standard)
-CORE_PREFIXES = ("R", "C", "D", "Q", "U", "IC", "SW")
+CORE_PREFIXES = ("R", "C", "D", "Q", "U", "IC", "SW", "X", "Y")
 
 
 # --- Type Definitions ---
@@ -316,6 +316,8 @@ def categorize_part(
         category = "Resistors"
     elif ref_up.startswith("LED"):
         category = "Diodes"
+    elif ref_up.startswith(("X", "Y")):
+        category = "Crystals/Oscillators"
 
     # ICs -> Inject Socket
     elif ref_up.startswith(("U", "IC", "OP", "TL")):

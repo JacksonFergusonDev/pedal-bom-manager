@@ -251,8 +251,14 @@ def categorize_part(
     # 4. Taper Check (The "Smart" Check)
     # Looks for "B100k", "10k-A" to identify pots by value.
     is_pot_value = False
-    if re.search(r"[0-9]+.*[ABCWG]$", val_up) or re.search(r"^[ABCWG][0-9]+", val_up):
-        is_pot_value = True
+
+    # Prevent ICs (e.g. TC1044SCPA) and Transistors (e.g. BC549C) from matching
+    # the 'Ends with A/C' regex.
+    if not ref_up.startswith(("IC", "U", "Q", "OP", "TL")):
+        if re.search(r"[0-9]+.*[ABCWG]$", val_up) or re.search(
+            r"^[ABCWG][0-9]+", val_up
+        ):
+            is_pot_value = True
 
     # Validity Check
     is_valid = (

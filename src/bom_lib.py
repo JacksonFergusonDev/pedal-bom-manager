@@ -1207,188 +1207,191 @@ def parse_pedalpcb_pdf(
                             if count > 0:
                                 stats["parts_found"] += count
 
-            # --- STRATEGY 3: HAIL MARY (RAW TEXT) ---
+            # --- STRATEGY 3: HYBRID CLEANUP ---
+            # 1. Define Keywords (Always safe to hunt for)
+            keywords = [
+                "VOLUME",
+                "MASTER",
+                "LEVEL",
+                "GAIN",
+                "DRIVE",
+                "DIST",
+                "FUZZ",
+                "DIRT",
+                "TONE",
+                "TREBLE",
+                "BASS",
+                "MID",
+                "MIDS",
+                "PRESENCE",
+                "CONTOUR",
+                "WIDTH",
+                "DEPTH",
+                "RATE",
+                "SPEED",
+                "COLOR",
+                "TEXTURE",
+                "BIAS",
+                "ATTACK",
+                "DECAY",
+                "SUSTAIN",
+                "RELEASE",
+                "THRESH",
+                "COMP",
+                "MIX",
+                "BLEND",
+                "DRY",
+                "WET",
+                "REPEATS",
+                "TIME",
+                "FEEDBACK",
+                "FILTER",
+                "CUT",
+                "BOOST",
+                "RANGE",
+                "VOICE",
+                "NATURE",
+                "INTENSITY",
+                "THROB",
+                "SWELL",
+                "PULSE",
+                "LENGTH",
+                "MODE",
+                "SWEEP",
+                "RES",
+                "RESONANCE",
+                "PV",
+                "AMT",
+                "AMOUNT",
+                "LO",
+                "HI",
+            ]
+            kw_regex_str = "|".join([rf"\b{k}\b" for k in keywords])
+
+            # 2. Determine Scope
+            # If we have NO parts, we go 'Full Hail Mary' (Standard Refs + Keywords).
+            # If we HAVE parts, we only hunt for missing Controls (Keywords Only) to avoid R/C false positives.
             if stats["parts_found"] == 0:
-                # Keywords: Added word boundaries (\b) to prevent partial matches
-                # e.g. "COMP" should not match "COMPONENTS"
-                keywords = [
-                    "VOLUME",
-                    "MASTER",
-                    "LEVEL",
-                    "GAIN",
-                    "DRIVE",
-                    "DIST",
-                    "FUZZ",
-                    "DIRT",
-                    "TONE",
-                    "TREBLE",
-                    "BASS",
-                    "MID",
-                    "MIDS",
-                    "PRESENCE",
-                    "CONTOUR",
-                    "WIDTH",
-                    "DEPTH",
-                    "RATE",
-                    "SPEED",
-                    "COLOR",
-                    "TEXTURE",
-                    "BIAS",
-                    "ATTACK",
-                    "DECAY",
-                    "SUSTAIN",
-                    "RELEASE",
-                    "THRESH",
-                    "COMP",
-                    "MIX",
-                    "BLEND",
-                    "DRY",
-                    "WET",
-                    "REPEATS",
-                    "TIME",
-                    "FEEDBACK",
-                    "FILTER",
-                    "CUT",
-                    "BOOST",
-                    "RANGE",
-                    "VOICE",
-                    "NATURE",
-                    "INTENSITY",
-                    "THROB",
-                    "SWELL",
-                    "PULSE",
-                    "LENGTH",
-                    "MODE",
-                ]
-                # Join with \b wrapper
-                kw_regex = "|".join([rf"\b{k}\b" for k in keywords])
+                ref_pattern = rf"(?P<ref>\b[A-Z]{{1,4}}\d+\b|{kw_regex_str})"
+            else:
+                ref_pattern = rf"(?P<ref>{kw_regex_str})"
 
-                # Regex Pattern:
-                # Group 1 (Ref): Standard Ref (R1) OR Keyword (GAIN)
-                # Group 2 (Val): The value
-                regex = re.compile(
-                    rf"(?P<ref>\b[A-Z]{{1,4}}\d+\b|{kw_regex})\s+(?P<val>[^\s]+)",
-                    re.IGNORECASE,
-                )
+            regex = re.compile(rf"{ref_pattern}\s+(?P<val>[^\s]+)", re.IGNORECASE)
 
-                # Garbage Filter: Values to explicitly ignore
-                ignore_values = [
-                    "RESISTORS",
-                    "CAPACITORS",
-                    "DIODES",
-                    "ICS",
-                    "POTENTIOMETERS",
-                    "PARTS",
-                    "LIST",
-                    "VALUE",
-                    "LOCATION",
-                    "TYPE",
-                    "RATING",
-                    "COMPONENTS",
-                    "OFFBOARD",
-                    "ENCLOSURE",
-                    "FOOTSWITCH",
-                    "JACKS",
-                    "FEATURES",
-                    "CONTROLS",
-                    "AND",
-                    "THE",
-                    "OF",
-                ]
+            ignore_values = [
+                "RESISTORS",
+                "CAPACITORS",
+                "DIODES",
+                "ICS",
+                "POTENTIOMETERS",
+                "PARTS",
+                "LIST",
+                "VALUE",
+                "LOCATION",
+                "TYPE",
+                "RATING",
+                "COMPONENTS",
+                "OFFBOARD",
+                "ENCLOSURE",
+                "FOOTSWITCH",
+                "JACKS",
+                "FEATURES",
+                "CONTROLS",
+                "AND",
+                "THE",
+                "OF",
+            ]
 
-                for page in pdf.pages:
-                    text = page.extract_text()
-                    if not text:
+            # 3. Execution
+            for page in pdf.pages:
+                text = page.extract_text()
+                if not text:
+                    continue
+
+                # We need to know where the *next* match starts to prevent overlapping captures.
+                matches = list(regex.finditer(text))
+
+                for i, match in enumerate(matches):
+                    ref_str = match.group("ref").upper()
+                    val_str = match.group("val")
+                    val_start = match.start("val")
+
+                    # Determine the safety boundary (Start of next match or End of Text)
+                    next_match_start = (
+                        matches[i + 1].start() if i + 1 < len(matches) else len(text)
+                    )
+
+                    # Check if we need to grab the full line (LDRs, Pots, Keywords)
+                    needs_full_line = (
+                        ref_str.startswith("LDR")
+                        or ref_str in keywords
+                        or ref_str.startswith(("POT", "VR"))
+                    )
+
+                    if needs_full_line:
+                        # Find end of line
+                        line_end = text.find("\n", val_start)
+                        if line_end == -1:
+                            line_end = len(text)
+
+                        # Stop at the newline OR the next component match, whichever comes first.
+                        # This prevents "MODE ... " from eating "MIX ... " on the same line.
+                        cutoff = min(line_end, next_match_start)
+                        val_str = text[val_start:cutoff].strip()
+
+                    # 1. Clean Value (Strip parentheses, etc)
+                    # e.g. "(1/4W)" -> "1/4W"
+                    # Only remove brackets if they surround the whole string
+                    if val_str.startswith("(") and val_str.endswith(")"):
+                        val_str = val_str[1:-1].strip()
+                    elif val_str.startswith("[") and val_str.endswith("]"):
+                        val_str = val_str[1:-1].strip()
+
+                    # 2. Filter Garbage Matches
+                    if len(val_str) > 50 or len(val_str) < 1:
                         continue
 
-                    # We need to know where the *next* match starts to prevent overlapping captures.
-                    matches = list(regex.finditer(text))
+                    # Check against blacklist
+                    if any(bad in val_str.upper() for bad in ignore_values):
+                        continue
 
-                    for i, match in enumerate(matches):
-                        ref_str = match.group("ref").upper()
-                        val_str = match.group("val")
-                        val_start = match.start("val")
+                    # Ignore Sentences
+                    # Notes often look like "Rate is a..." or "See note..."
+                    if re.match(r"^(is|see|note)\s", val_str, re.IGNORECASE):
+                        continue
 
-                        # Determine the safety boundary (Start of next match or End of Text)
-                        next_match_start = (
-                            matches[i + 1].start()
-                            if i + 1 < len(matches)
-                            else len(text)
+                    # 3. Prefix Safety Check
+                    is_keyword = ref_str in keywords
+                    if not is_keyword:
+                        # Must look like a real component (R1, C1, IC1, etc)
+                        valid_prefixes = CORE_PREFIXES + (
+                            "POT",
+                            "VR",
+                            "L",
+                            "LD",
                         )
 
-                        # Check if we need to grab the full line (LDRs, Pots, Keywords)
-                        needs_full_line = (
-                            ref_str.startswith("LDR")
-                            or ref_str in keywords
-                            or ref_str.startswith(("POT", "VR"))
-                        )
-
-                        if needs_full_line:
-                            # Find end of line
-                            line_end = text.find("\n", val_start)
-                            if line_end == -1:
-                                line_end = len(text)
-
-                            # Stop at the newline OR the next component match, whichever comes first.
-                            # This prevents "MODE ... " from eating "MIX ... " on the same line.
-                            cutoff = min(line_end, next_match_start)
-                            val_str = text[val_start:cutoff].strip()
-
-                        # 1. Clean Value (Strip parentheses, etc)
-                        # e.g. "(1/4W)" -> "1/4W"
-                        # Only remove brackets if they surround the whole string
-                        if val_str.startswith("(") and val_str.endswith(")"):
-                            val_str = val_str[1:-1].strip()
-                        elif val_str.startswith("[") and val_str.endswith("]"):
-                            val_str = val_str[1:-1].strip()
-
-                        # 2. Filter Garbage Matches
-                        if len(val_str) > 50 or len(val_str) < 1:
+                        # Check 1: Must start with valid prefix
+                        if not any(ref_str.startswith(p) for p in valid_prefixes):
                             continue
 
-                        # Check against blacklist
-                        if any(bad in val_str.upper() for bad in ignore_values):
+                        # Check 2: "Ghost Data" Heuristic
+                        # If Ref is 3+ letters (e.g. "MPSA") and Val is a single digit ("2"),
+                        # it's almost certainly a "Qty Part" line read backwards.
+                        if len(ref_str) >= 3 and re.match(r"^\d+$", val_str):
                             continue
 
-                        # Ignore Sentences
-                        # Notes often look like "Rate is a..." or "See note..."
-                        if re.match(r"^(is|see|note)\s", val_str, re.IGNORECASE):
+                    else:
+                        # 4. Keyword Value Validation
+                        # If we matched a keyword (e.g. "VOLUME"), the value MUST contain a digit
+                        # to be valid (e.g. "B100k").
+                        # This filters out text like "Dry Signal", "Attack -", or "Comp •"
+                        if not any(char.isdigit() for char in val_str):
                             continue
 
-                        # 3. Prefix Safety Check
-                        is_keyword = ref_str in keywords
-                        if not is_keyword:
-                            # Must look like a real component (R1, C1, IC1, etc)
-                            valid_prefixes = CORE_PREFIXES + (
-                                "POT",
-                                "VR",
-                                "L",
-                                "LD",
-                            )
-
-                            # Check 1: Must start with valid prefix
-                            if not any(ref_str.startswith(p) for p in valid_prefixes):
-                                continue
-
-                            # Check 2: "Ghost Data" Heuristic
-                            # If Ref is 3+ letters (e.g. "MPSA") and Val is a single digit ("2"),
-                            # it's almost certainly a "Qty Part" line read backwards.
-                            if len(ref_str) >= 3 and re.match(r"^\d+$", val_str):
-                                continue
-
-                        else:
-                            # 4. Keyword Value Validation
-                            # If we matched a keyword (e.g. "VOLUME"), the value MUST contain a digit
-                            # to be valid (e.g. "B100k").
-                            # This filters out text like "Dry Signal", "Attack -", or "Comp •"
-                            if not any(char.isdigit() for char in val_str):
-                                continue
-
-                        c = ingest_bom_line(
-                            inventory, source_name, ref_str, val_str, stats
-                        )
-                        if c > 0:
-                            stats["parts_found"] += c
+                    c = ingest_bom_line(inventory, source_name, ref_str, val_str, stats)
+                    if c > 0:
+                        stats["parts_found"] += c
 
     except Exception as e:
         stats["residuals"].append(f"PDF Parse Error: {e}")

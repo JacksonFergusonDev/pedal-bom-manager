@@ -19,6 +19,9 @@ MULTIPLIERS = {
     "G": 1e9,  # Giga
 }
 
+# Core Component Designators (IPC Standard)
+CORE_PREFIXES = ("R", "C", "D", "Q", "U", "IC", "SW")
+
 
 # --- Type Definitions ---
 class StatsDict(TypedDict):
@@ -242,7 +245,7 @@ def categorize_part(
 
     # 3. Standard Component Prefixes
     # Note: 'P' or 'POT' are handled above.
-    valid_prefixes = ("R", "C", "D", "Q", "U", "IC", "SW", "OP", "TL", "LDR", "LED")
+    valid_prefixes = CORE_PREFIXES + ("OP", "TL", "LDR", "LED")
 
     # STRICT CHECK: Standard components MUST have a number (e.g. "R1", not "Resistors")
     # Exceptions: POT names are handled in step 1.
@@ -1315,14 +1318,7 @@ def parse_pedalpcb_pdf(
                         is_keyword = ref_str in keywords
                         if not is_keyword:
                             # Must look like a real component (R1, C1, IC1, etc)
-                            valid_prefixes = (
-                                "R",
-                                "C",
-                                "D",
-                                "Q",
-                                "IC",
-                                "U",
-                                "SW",
+                            valid_prefixes = CORE_PREFIXES + (
                                 "POT",
                                 "VR",
                                 "J",

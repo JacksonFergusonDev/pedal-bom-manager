@@ -1279,7 +1279,11 @@ def parse_pedalpcb_pdf(
 
                         # 1. Clean Value (Strip parentheses, etc)
                         # e.g. "(1/4W)" -> "1/4W"
-                        val_str = val_str.strip("()[]")
+                        # Only remove brackets if they surround the whole string
+                        if val_str.startswith("(") and val_str.endswith(")"):
+                            val_str = val_str[1:-1].strip()
+                        elif val_str.startswith("[") and val_str.endswith("]"):
+                            val_str = val_str[1:-1].strip()
 
                         # 2. Filter Garbage Matches
                         if len(val_str) > 50 or len(val_str) < 1:
@@ -1287,6 +1291,11 @@ def parse_pedalpcb_pdf(
 
                         # Check against blacklist
                         if any(bad in val_str.upper() for bad in ignore_values):
+                            continue
+
+                        # Ignore Sentences
+                        # Notes often look like "Rate is a..." or "See note..."
+                        if re.match(r"^(is|see|note)\s", val_str, re.IGNORECASE):
                             continue
 
                         # 3. Prefix Safety Check

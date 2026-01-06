@@ -1153,6 +1153,10 @@ def parse_pedalpcb_pdf(
                     "RANGE",
                     "VOICE",
                     "NATURE",
+                    "INTENSITY",
+                    "THROB",
+                    "SWELL",
+                    "PULSE",
                 ]
                 # Join with \b wrapper
                 kw_regex = "|".join([rf"\b{k}\b" for k in keywords])

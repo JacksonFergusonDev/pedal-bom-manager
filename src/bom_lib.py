@@ -292,8 +292,17 @@ def categorize_part(
     # ICs -> Inject Socket
     elif ref_up.startswith(("U", "IC", "OP", "TL")):
         category = "ICs"
-        # Generic injection to avoid 8-pin vs 14-pin mismatches
-        injection = "Hardware/Misc | DIP SOCKET (Check Size)"
+
+        # Generic injection, but exclude parts that clearly aren't DIP chips
+        # 1. Regulators (usually TO-92 or TO-220)
+        # 2. Reverb Modules (BTDR Bricks)
+        val_upper = val.strip().upper()
+        if any(
+            x in val_upper for x in ["REGULATOR", "L78L", "MODULE", "BTDR", "REVERB"]
+        ):
+            injection = None
+        else:
+            injection = "Hardware/Misc | DIP SOCKET (Check Size)"
 
     # Use centralized normalizer
     val_clean = normalize_value_by_category(category, val_clean)

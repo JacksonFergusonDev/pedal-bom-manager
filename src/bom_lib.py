@@ -1261,9 +1261,15 @@ def parse_pedalpcb_pdf(
                         ref_str = match.group("ref").upper()
                         val_str = match.group("val")
 
-                        # The regex stops at the first space. For LDRs, we need the whole line.
-                        if ref_str.startswith("LDR"):
-                            # Find end of line from the start of the value match
+                        # If it's an LDR or a Control (Pot), we need the full text line
+                        # to catch "KE-10720" or "(Dual)" or "No Check"
+                        needs_full_line = (
+                            ref_str.startswith("LDR")
+                            or ref_str in keywords
+                            or ref_str.startswith(("POT", "VR"))
+                        )
+
+                        if needs_full_line:
                             val_start = match.start("val")
                             line_end = text.find("\n", val_start)
                             if line_end != -1:
@@ -1298,12 +1304,20 @@ def parse_pedalpcb_pdf(
                                 "POT",
                                 "VR",
                                 "J",
-                                "T",
                                 "L",
-                                "P",
+                                "LD",
                             )
+
+                            # Check 1: Must start with valid prefix
                             if not any(ref_str.startswith(p) for p in valid_prefixes):
                                 continue
+
+                            # Check 2: "Ghost Data" Heuristic
+                            # If Ref is 3+ letters (e.g. "MPSA") and Val is a single digit ("2"),
+                            # it's almost certainly a "Qty Part" line read backwards.
+                            if len(ref_str) >= 3 and re.match(r"^\d+$", val_str):
+                                continue
+
                         else:
                             # 4. Keyword Value Validation
                             # If we matched a keyword (e.g. "VOLUME"), the value MUST contain a digit

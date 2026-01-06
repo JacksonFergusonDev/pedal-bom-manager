@@ -189,7 +189,10 @@ def categorize_part(
     val_clean = val.strip()  # Keep original case for display
     val_up = val_clean.upper()  # Use this for internal logic
 
-    # 1. Known Potentiometer Labels
+    # 1. Define Known Switch Labels
+    switch_labels = {"LENGTH", "MODE", "CLIP", "VOICE", "BRIGHT", "FAT"}
+
+    # 2. Known Potentiometer Labels
     # If the ref matches these, it's definitely a knob.
     pot_labels = {
         "POT",
@@ -237,7 +240,7 @@ def categorize_part(
         "SENS",
     }
 
-    # 2. Standard Component Prefixes
+    # 3. Standard Component Prefixes
     # Note: 'P' or 'POT' are handled above.
     valid_prefixes = ("R", "C", "D", "Q", "U", "IC", "SW", "OP", "TL", "LDR", "LED")
 
@@ -245,7 +248,7 @@ def categorize_part(
     # Exceptions: POT names are handled in step 1.
     has_digit = any(char.isdigit() for char in ref_up)
 
-    # 3. Taper Check (The "Smart" Check)
+    # 4. Taper Check (The "Smart" Check)
     # Looks for "B100k", "10k-A" to identify pots by value.
     is_pot_value = False
     if re.search(r"[0-9]+.*[ABCWG]$", val_up) or re.search(r"^[ABCWG][0-9]+", val_up):
@@ -255,6 +258,7 @@ def categorize_part(
     is_valid = (
         (any(ref_up.startswith(p) for p in valid_prefixes) and has_digit)
         or ref_up in pot_labels
+        or ref_up in switch_labels
         or any(ref_up.startswith(label) for label in pot_labels)
         or is_pot_value
     )
@@ -273,6 +277,15 @@ def categorize_part(
         or is_pot_value
     ):
         category = "Potentiometers"
+
+    # Check for named switches BEFORE the generic startswith("SW")
+    elif ref_up in switch_labels:
+        # Heuristic: If it says "ON", it's a switch. If it's a resistance, it's a Pot.
+        if "ON" in val_up or "SW" in val_up or "SP" in val_up or "DP" in val_up:
+            category = "Switches"
+        else:
+            # Fallback to pot (e.g. a "LENGTH" control that is actually a B100K pot)
+            category = "Potentiometers"
 
     elif ref_up.startswith("R") and not ref_up.startswith("RANGE"):
         category = "Resistors"

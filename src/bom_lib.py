@@ -570,6 +570,9 @@ def generate_search_term(category: str, val: str, spec_type: str = "") -> str:
         taper = "Linear"  # Default
         val_upper = val.upper()
 
+        # Check for Gang type
+        is_dual = "DUAL" in val_upper or "STEREO" in val_upper
+
         if "A" in val_upper:
             taper = "Logarithmic"
         elif "B" in val_upper:
@@ -588,6 +591,12 @@ def generate_search_term(category: str, val: str, spec_type: str = "") -> str:
             clean_val = float_to_search_string(fval)
         else:
             clean_val = clean_raw if clean_raw else val
+
+        # 3. Construct Search Term
+        base_term = f"{clean_val} ohm {taper} potentiometer"
+
+        if is_dual:
+            return f"Dual Gang {base_term}"
 
         return f"{clean_val} ohm {taper} potentiometer"
 

@@ -20,7 +20,7 @@ MULTIPLIERS = {
 }
 
 # Core Component Designators (IPC Standard)
-CORE_PREFIXES = ("R", "C", "D", "Q", "U", "IC", "SW", "X", "Y")
+CORE_PREFIXES = ("R", "C", "D", "Q", "U", "IC", "SW", "X", "Y", "J")
 
 
 # --- Type Definitions ---
@@ -318,6 +318,8 @@ def categorize_part(
         category = "Diodes"
     elif ref_up.startswith(("X", "Y")):
         category = "Crystals/Oscillators"
+    elif ref_up.startswith("J"):
+        category = "Hardware/Misc"
 
     # ICs -> Inject Socket
     elif ref_up.startswith(("U", "IC", "OP", "TL")):
@@ -1323,7 +1325,6 @@ def parse_pedalpcb_pdf(
                             valid_prefixes = CORE_PREFIXES + (
                                 "POT",
                                 "VR",
-                                "J",
                                 "L",
                                 "LD",
                             )

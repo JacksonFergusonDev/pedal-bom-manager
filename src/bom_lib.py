@@ -193,7 +193,19 @@ def categorize_part(
     val_up = val_clean.upper()  # Use this for internal logic
 
     # 1. Define Known Switch Labels
-    switch_labels = {"LENGTH", "MODE", "CLIP", "VOICE", "BRIGHT", "FAT"}
+    switch_labels = {
+        "LENGTH",
+        "MODE",
+        "CLIP",
+        "VOICE",
+        "BRIGHT",
+        "FAT",
+        "PV",
+        "RANGE",
+        "LO",
+        "HI",
+        "MID",
+    }
 
     # 2. Known Potentiometer Labels
     # If the ref matches these, it's definitely a knob.
@@ -241,6 +253,11 @@ def categorize_part(
         "FILTER",
         "RANGE",
         "SENS",
+        "SWEEP",
+        "RES",
+        "RESONANCE",
+        "AMT",
+        "AMOUNT",
     }
 
     # 3. Standard Component Prefixes

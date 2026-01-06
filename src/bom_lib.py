@@ -276,6 +276,12 @@ def categorize_part(
     category = "Unknown"
     injection: Optional[str] = None
 
+    # LDR Check (Priority Fix)
+    if ref_up.startswith("LDR"):
+        category = "Optoelectronics"
+        # CRITICAL: Return immediately to bypass normalization stripping
+        return category, val_clean, None
+
     # Check Pots first (avoids collisions like 'RANGE' starting with 'R')
     if (
         ref_up in pot_labels
@@ -702,6 +708,11 @@ def get_buy_details(category: str, val: str, count: int) -> Tuple[int, str]:
         if fval is not None and fval < 1.0:
             note = "⚠️ Suspicious Value (< 1Ω). Verify BOM."
 
+    elif category == "Optoelectronics":
+        # Risk: Medium (Fragile legs, heat sensitive).
+        # Logic: Exact count + 1 spare.
+        buy = count + 1
+
     elif category == "Capacitors":
         # Explicitly type hint the list to keep mypy happy
         note_parts: List[str] = []
@@ -818,6 +829,7 @@ def sort_inventory(inventory: InventoryType) -> List[Tuple[str, PartData]]:
     order = [
         "PCB",
         "ICs",
+        "Optoelectronics",
         "Transistors",
         "Diodes",
         "Potentiometers",

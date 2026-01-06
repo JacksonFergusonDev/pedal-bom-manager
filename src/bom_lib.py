@@ -168,9 +168,13 @@ def normalize_value_by_category(category: str, val_raw: str) -> str:
 
     # Only normalize Passives (Resistors/Caps)
     if category in ("Resistors", "Capacitors"):
-        fval = parse_value_to_float(clean_val)
-        if fval is not None:
-            clean_val = float_to_search_string(fval)
+        # Exception: Don't normalize physical dimensions (e.g. "5mm LDR")
+        if "mm" in clean_val.lower():
+            pass
+        else:
+            fval = parse_value_to_float(clean_val)
+            if fval is not None:
+                clean_val = float_to_search_string(fval)
 
     return clean_val
 

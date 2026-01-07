@@ -1,5 +1,8 @@
 from fpdf import FPDF
 import datetime
+import zipfile
+import io
+import re
 from src.bom_lib import deduplicate_refs
 
 
@@ -157,55 +160,72 @@ def float_val_check(val_str: str) -> float:
     return 0.0
 
 
-def generate_field_manual(inventory, slots):
-    pdf = FieldManual()
+def generate_field_manual_zip(inventory, slots):
+    """
+    Generates a ZIP file containing individual Field Manual PDFs for each pedal.
+    """
+    zip_buffer = io.BytesIO()
 
-    for slot in slots:
-        project_name = slot["name"]
-        if not project_name:
-            continue
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        for slot in slots:
+            project_name = slot["name"]
+            if not project_name:
+                continue
 
-        project_parts = []
+            # Create a FRESH PDF for this project
+            pdf = FieldManual()
 
-        # Filter Inventory for this project
-        for key, data in inventory.items():
-            sources = data["sources"]
+            project_parts = []
 
-            # Check if this project uses this part
-            # Note: sources keys might match slot['name']
-            if project_name in sources:
-                # Deduplicate refs to get Single-Unit count
-                # e.g. ['R1', 'R1'] -> ['R1'] -> Qty 1
-                unique_refs = deduplicate_refs(sources[project_name])
-                qty = len(unique_refs)
+            # Filter Inventory for this project
+            for key, data in inventory.items():
+                sources = data["sources"]
 
-                if qty > 0:
-                    cat, val = key.split(" | ", 1)
+                # Check if this project uses this part
+                if project_name in sources:
+                    # Deduplicate refs to get Single-Unit count
+                    unique_refs = deduplicate_refs(sources[project_name])
+                    qty = len(unique_refs)
 
-                    # Formatting Overrides
-                    row_notes = ""
-                    if "DIP SOCKET (Check Size)" in val:
-                        val = "DIP SOCKET"
+                    if qty > 0:
+                        cat, val = key.split(" | ", 1)
 
-                    is_polarized = cat in ["Diodes", "Transistors", "ICs"]
-                    if cat == "Capacitors" and ("u" in val or "µ" in val):
-                        is_polarized = True
+                        # Formatting Overrides
+                        row_notes = ""
+                        if "DIP SOCKET (Check Size)" in val:
+                            val = "DIP SOCKET"
+                            row_notes = "[!] Check Size"
 
-                    project_parts.append(
-                        {
-                            "category": cat,
-                            "value": val,
-                            "qty": qty,
-                            "refs": unique_refs,
-                            "notes": row_notes,
-                            "polarized": is_polarized,
-                        }
-                    )
+                        is_polarized = cat in ["Diodes", "Transistors", "ICs"]
+                        if cat == "Capacitors" and ("u" in val or "µ" in val):
+                            is_polarized = True
 
-        # Sort
-        sorted_parts = sort_by_z_height(project_parts)
+                        project_parts.append(
+                            {
+                                "category": cat,
+                                "value": val,
+                                "qty": qty,
+                                "refs": unique_refs,
+                                "notes": row_notes,
+                                "polarized": is_polarized,
+                            }
+                        )
 
-        # Add to PDF
-        pdf.add_project(project_name, sorted_parts)
+            # Sort
+            sorted_parts = sort_by_z_height(project_parts)
 
-    return bytes(pdf.output(dest="S"))
+            # Add content (starts Page 1)
+            pdf.add_project(project_name, sorted_parts)
+
+            # Generate PDF bytes
+            pdf_bytes = bytes(pdf.output(dest="S"))
+
+            # Create Safe Filename
+            # e.g. "Big Muff - Ram's Head" -> "Big_Muff_-_Rams_Head_Field_Manual.pdf"
+            safe_name = re.sub(r"[^a-zA-Z0-9_\-]", "_", project_name)
+            filename = f"{safe_name}_Field_Manual.pdf"
+
+            # Write to ZIP
+            zf.writestr(filename, pdf_bytes)
+
+    return zip_buffer.getvalue()

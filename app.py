@@ -542,7 +542,8 @@ if st.button("Generate Master List", type="primary", width="stretch"):
             url = slot.get("data", "").strip()
             if url:
                 try:
-                    response = requests.get(url)
+                    # Added timeout=10s to prevent indefinite hangs
+                    response = requests.get(url, timeout=10)
                     response.raise_for_status()
 
                     # Check for PDF signature or extension
@@ -576,8 +577,27 @@ if st.button("Generate Master List", type="primary", width="stretch"):
                     stats["parts_found"] += p_stats["parts_found"]
                     stats["residuals"].extend(p_stats["residuals"])
 
+                # Friendly Error Handling
+                except requests.exceptions.MissingSchema:
+                    st.error(
+                        f"❌ '{source}': Invalid URL. Did you forget http:// or https://?"
+                    )
+                except requests.exceptions.ConnectionError:
+                    st.error(
+                        f"❌ '{source}': Connection failed. Check the URL or your internet."
+                    )
+                except requests.exceptions.Timeout:
+                    st.error(f"❌ '{source}': Server timed out. Try again later.")
+                except requests.exceptions.HTTPError as err:
+                    code = err.response.status_code
+                    if code == 404:
+                        st.error(
+                            f"❌ '{source}': File not found (404). Check the link."
+                        )
+                    else:
+                        st.error(f"❌ '{source}': Server returned error {code}.")
                 except Exception as e:
-                    st.error(f"Failed to fetch URL: {e}")
+                    st.error(f"❌ '{source}': Unexpected error: {str(e)}")
 
     # Process Stock if uploaded
     stock_inventory = None

@@ -1,4 +1,5 @@
 from fpdf import FPDF
+from fpdf.enums import XPos, YPos
 import datetime
 import zipfile
 import io
@@ -14,7 +15,14 @@ class FieldManual(FPDF):
 
     def header(self):
         self.set_font("Courier", "B", 10)
-        self.cell(0, 10, "Pedal Builder's Field Manual", ln=True, align="R")
+        self.cell(
+            0,
+            10,
+            "Pedal Builder's Field Manual",
+            align="R",
+            new_x=XPos.LMARGIN,
+            new_y=YPos.NEXT,
+        )
         self.line(10, 20, 200, 20)
         self.ln(10)
 
@@ -31,10 +39,12 @@ class FieldManual(FPDF):
 
         # Project Title
         self.set_font("Courier", "B", 16)
-        self.cell(0, 10, f"Project: {project_name}", ln=True)
+        self.cell(
+            0, 10, f"Project: {project_name}", new_x=XPos.LMARGIN, new_y=YPos.NEXT
+        )
         self.set_font("Courier", "", 10)
         date_str = datetime.datetime.now().strftime("%Y-%m-%d")
-        self.cell(0, 6, f"Date: {date_str}", ln=True)
+        self.cell(0, 6, f"Date: {date_str}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         self.ln(5)
 
         # Headers
@@ -42,7 +52,9 @@ class FieldManual(FPDF):
         self.cell(10, 8, "Chk", 1)
         self.cell(15, 8, "Qty", 1)
         self.cell(60, 8, "Value", 1)
-        self.cell(0, 8, "Refs", 1, ln=True)
+        self.cell(
+            0, 8, "Refs", 1, new_x=XPos.LMARGIN, new_y=YPos.NEXT
+        )  # Takes remaining space
 
         # Rows
         self.set_font("Courier", "", 9)
@@ -94,7 +106,7 @@ class FieldManual(FPDF):
             refs = ", ".join(part["refs"])
             if len(refs) > 60:
                 refs = refs[:57] + "..."
-            self.cell(0, 8, refs, 1, ln=True)
+            self.cell(0, 8, refs, 1, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
 
 def sort_by_z_height(part_list):
@@ -218,7 +230,7 @@ def generate_field_manual_zip(inventory, slots):
             pdf.add_project(project_name, sorted_parts)
 
             # Generate PDF bytes
-            pdf_bytes = bytes(pdf.output(dest="S"))
+            pdf_bytes = bytes(pdf.output())
 
             # Create Safe Filename
             # e.g. "Big Muff - Ram's Head" -> "Big_Muff_-_Rams_Head_Field_Manual.pdf"

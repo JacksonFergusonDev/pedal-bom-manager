@@ -45,7 +45,20 @@ class FieldManual(FPDF):
         self.set_font("Courier", "", 10)
         date_str = datetime.datetime.now().strftime("%Y-%m-%d")
         self.cell(0, 6, f"Date: {date_str}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-        self.ln(5)
+
+        # Legend
+        self.set_font("Courier", "I", 8)
+        self.set_text_color(220, 50, 50)  # Red
+        self.cell(
+            0,
+            5,
+            "Legend: Red Text = Polarized Component",
+            new_x=XPos.LMARGIN,
+            new_y=YPos.NEXT,
+        )
+        self.set_text_color(0, 0, 0)  # Reset
+
+        self.ln(2)  # Reduced spacing since legend takes up some room
 
         # Headers
         self.set_font("Courier", "B", 10)

@@ -78,10 +78,10 @@ class StickerSheet(FPDF):
         self.set_auto_page_break(auto=False)
         self.set_margins(4.8, 12.7, 4.8)  # Left 0.19", Top 0.5"
 
-        # Avery 5160 Dims
+        # Avery 5160 Dims (Modified for Manual Cutting)
         self.label_w = 66.6  # 2.625"
         self.label_h = 25.4  # 1.0"
-        self.h_gap = 3.0  # 0.125" between cols
+        self.h_gap = 0.0  # No gap = shared borders for single-cut lines
         self.v_gap = 0.0  # 0.0" between rows
 
         self.cols = 3
@@ -103,6 +103,12 @@ class StickerSheet(FPDF):
         y = 12.7 + (row * (self.label_h + self.v_gap))
 
         self.set_xy(x, y)
+
+        # Draw Cut Line (Border)
+        self.set_line_width(0.1)
+        self.set_draw_color(150, 150, 150)  # Light Grey cut lines
+        self.rect(x, y, self.label_w, self.label_h)
+        self.set_draw_color(0, 0, 0)  # Reset to black
 
         # Content
         # Top Left: Project Code

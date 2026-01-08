@@ -507,8 +507,15 @@ if st.button("Generate Master List", type="primary", width="stretch"):
         "seen_refs": set(),
     }
     # Process Each Slot
-    for slot in st.session_state.pedal_slots:
-        source = slot["name"] if slot["name"].strip() else "Untitled Project"
+    for i, slot in enumerate(st.session_state.pedal_slots):
+        # Fallback: If name is empty, assign one so PDF generation works
+        if not slot["name"].strip():
+            default_name = f"Project #{i + 1}"
+            slot["name"] = default_name
+            # Update widget state so it reflects in the UI on next render
+            st.session_state[f"name_{slot['id']}"] = default_name
+
+        source = slot["name"]
         qty_multiplier = slot.get("count", 1)
 
         # A. Paste Text Mode (and Presets)

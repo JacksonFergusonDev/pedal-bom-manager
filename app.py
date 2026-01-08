@@ -332,13 +332,18 @@ def on_method_change(slot_id):
     # Case: Switch to Paste Text -> Clear Data
     if new_method == "Paste Text":
         slot["data"] = ""
-        # Clear the text area widget state to ensure it shows empty
+        slot.pop("pdf_path", None)  # Clear Preset Path
+        slot.pop("cached_pdf_bytes", None)  # Clear Downloaded Bytes
+
         if f"text_{slot_id}" in st.session_state:
             st.session_state[f"text_{slot_id}"] = ""
 
     # Case: Switch to URL -> Clear Data
     elif new_method == "From URL":
         slot["data"] = ""
+        slot.pop("pdf_path", None)
+        slot.pop("cached_pdf_bytes", None)
+
         if f"url_{slot_id}" in st.session_state:
             st.session_state[f"url_{slot_id}"] = ""
 
@@ -508,12 +513,12 @@ if st.button("Generate Master List", type="primary", width="stretch"):
     }
     # Process Each Slot
     for i, slot in enumerate(st.session_state.pedal_slots):
-        # Fallback: If name is empty, assign one so PDF generation works
+        # Fallback: If name is empty, assign one so PDF generation works.
+        # NOTE: We only update the 'slot' dict (backend memory).
+        # We DO NOT update st.session_state[key] because the widget is already drawn.
         if not slot["name"].strip():
             default_name = f"Project #{i + 1}"
             slot["name"] = default_name
-            # Update widget state so it reflects in the UI on next render
-            st.session_state[f"name_{slot['id']}"] = default_name
 
         source = slot["name"]
         qty_multiplier = slot.get("count", 1)

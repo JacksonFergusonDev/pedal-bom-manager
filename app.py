@@ -923,7 +923,6 @@ if st.session_state.inventory and st.session_state.stats:
             data=csv_out,
             file_name="pedal_shopping_list.csv",
             mime="text/csv",
-            type="primary",
             use_container_width=True,
         )
 

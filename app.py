@@ -329,23 +329,44 @@ def on_method_change(slot_id):
     # Get the new method from the widget state
     new_method = st.session_state.get(f"method_{slot_id}")
 
-    # Case: Switch to Paste Text -> Clear Data
+    # Helper to reset name
+    name_key = f"name_{slot_id}"
+
+    # Case: Switch to Paste Text -> Clear Data & Name
     if new_method == "Paste Text":
         slot["data"] = ""
-        slot.pop("pdf_path", None)  # Clear Preset Path
-        slot.pop("cached_pdf_bytes", None)  # Clear Downloaded Bytes
+        slot["name"] = ""
+        if name_key in st.session_state:
+            st.session_state[name_key] = ""
+
+        slot.pop("pdf_path", None)
+        slot.pop("cached_pdf_bytes", None)
 
         if f"text_{slot_id}" in st.session_state:
             st.session_state[f"text_{slot_id}"] = ""
 
-    # Case: Switch to URL -> Clear Data
+    # Case: Switch to URL -> Clear Data & Name
     elif new_method == "From URL":
         slot["data"] = ""
+        slot["name"] = ""
+        if name_key in st.session_state:
+            st.session_state[name_key] = ""
+
         slot.pop("pdf_path", None)
         slot.pop("cached_pdf_bytes", None)
 
         if f"url_{slot_id}" in st.session_state:
             st.session_state[f"url_{slot_id}"] = ""
+
+    # Case: Switch to Upload -> Clear Data & Name
+    elif new_method == "Upload File":
+        slot["data"] = None  # File uploader expects None, not ""
+        slot["name"] = ""
+        if name_key in st.session_state:
+            st.session_state[name_key] = ""
+
+        slot.pop("pdf_path", None)
+        slot.pop("cached_pdf_bytes", None)
 
     # Case: Switch to Preset -> Load Default
     elif new_method == "Preset":

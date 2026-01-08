@@ -345,7 +345,16 @@ def on_method_change(slot_id):
     # Case: Switch to Preset -> Load Default
     elif new_method == "Preset":
         first_preset = sorted(list(BOM_PRESETS.keys()))[0]
-        slot["data"] = BOM_PRESETS[first_preset]
+        preset_obj = BOM_PRESETS[first_preset]
+
+        # Unpack Dict if necessary
+        if isinstance(preset_obj, dict):
+            slot["data"] = preset_obj["bom_text"]
+            if preset_obj.get("is_pdf"):
+                slot["pdf_path"] = preset_obj["source_path"]
+        else:
+            slot["data"] = preset_obj
+
         slot["last_loaded_preset"] = first_preset
 
         # Auto-fill name if empty

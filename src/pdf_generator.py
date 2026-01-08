@@ -271,72 +271,133 @@ def float_val_check(val_str: str) -> float:
     return 0.0
 
 
-def generate_field_manual_zip(inventory, slots):
-    """
-    Generates a ZIP file containing individual Field Manual PDFs for each pedal.
-    """
+def _write_field_manuals(zf, inventory, slots):
+    """Helper: Generate Field Manual PDFs and write to ZIP."""
+    for slot in slots:
+        project_name = slot["name"]
+        if not project_name:
+            continue
+
+        pdf = FieldManual()
+        project_parts = []
+
+        # Filter Inventory
+        for key, data in inventory.items():
+            sources = data["sources"]
+            if project_name in sources:
+                unique_refs = deduplicate_refs(sources[project_name])
+                if unique_refs:
+                    cat, val = key.split(" | ", 1)
+
+                    # Formatting logic
+                    row_notes = ""
+                    if "DIP SOCKET" in val:
+                        row_notes = "[!] Check Size"
+                    is_polarized = cat in ["Diodes", "Transistors", "ICs"] or (
+                        cat == "Capacitors" and ("u" in val or "µ" in val)
+                    )
+
+                    project_parts.append(
+                        {
+                            "category": cat,
+                            "value": val,
+                            "qty": len(unique_refs),
+                            "refs": unique_refs,
+                            "notes": row_notes,
+                            "polarized": is_polarized,
+                        }
+                    )
+
+        if project_parts:
+            sorted_parts = sort_by_z_height(project_parts)
+            pdf.add_project(project_name, sorted_parts)
+
+            safe_name = re.sub(r"[^a-zA-Z0-9_\-]", "_", project_name)
+            zf.writestr(
+                f"Field Manuals/{safe_name}_Field_Manual.pdf", bytes(pdf.output())
+            )
+
+
+def _write_stickers(zf, inventory, slots):
+    """Helper: Generate Sticker Sheet PDFs and write to ZIP."""
+    for slot in slots:
+        project_name = slot["name"]
+        if not project_name:
+            continue
+
+        project_parts = []
+        for key, data in inventory.items():
+            sources = data["sources"]
+            if project_name in sources:
+                unique_refs = deduplicate_refs(sources[project_name])
+                if unique_refs:
+                    cat, val = key.split(" | ", 1)
+                    project_parts.append((val, unique_refs))
+
+        if not project_parts:
+            continue
+
+        pdf = StickerSheet()
+        code = "".join([c for c in project_name if c.isalnum()]).upper()[:4]
+        project_parts.sort(key=lambda x: x[0])
+
+        for val, refs in project_parts:
+            pdf.add_sticker(code, val, refs, len(refs))
+
+        safe_name = re.sub(r"[^a-zA-Z0-9_\-]", "_", project_name)
+        zf.writestr(
+            f"Sticker Sheets/{safe_name}_Sticker_Sheet.pdf", bytes(pdf.output())
+        )
+
+
+def generate_pdf_bundle(inventory, slots):
+    """Option 1: Returns ZIP with Field Manuals and Sticker Sheets."""
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        _write_field_manuals(zf, inventory, slots)
+        _write_stickers(zf, inventory, slots)
+    return zip_buffer.getvalue()
+
+
+def generate_master_zip(inventory, slots, shopping_list_csv, stock_csv):
+    """Option 2: Returns ZIP with Everything (PDFs + CSVs + Source Files)."""
     zip_buffer = io.BytesIO()
 
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        # 1. Root Files
+        zf.writestr("Pedal Shopping List.csv", shopping_list_csv)
+        zf.writestr("My Inventory Updated.csv", stock_csv)
+
+        info_text = (
+            "Guitar Pedal BOM Manager\n"
+            "Generated on: "
+            + datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+            + "\n\n"
+            "CONTENTS:\n"
+            "- Field Manuals/: Printable step-by-step checklists.\n"
+            "- Sticker Sheets/: Labels for Avery 5160 (3x10).\n"
+            "- Source Documents/: The original build docs (if available).\n"
+        )
+        zf.writestr("info.txt", info_text)
+
+        # 2. Generated PDFs
+        _write_field_manuals(zf, inventory, slots)
+        _write_stickers(zf, inventory, slots)
+
+        # 3. Source Documents
         for slot in slots:
-            project_name = slot["name"]
-            if not project_name:
-                continue
+            safe_name = re.sub(r"[^a-zA-Z0-9_\-]", "_", slot["name"])
 
-            # Create a FRESH PDF for this project
-            pdf = FieldManual()
+            # Check cached bytes (URL/Upload)
+            if "cached_pdf_bytes" in slot and slot["cached_pdf_bytes"]:
+                zf.writestr(f"{safe_name}_Source.pdf", slot["cached_pdf_bytes"])
 
-            project_parts = []
-
-            # Filter Inventory for this project
-            for key, data in inventory.items():
-                sources = data["sources"]
-
-                # Check if this project uses this part
-                if project_name in sources:
-                    # Deduplicate refs to get Single-Unit count
-                    unique_refs = deduplicate_refs(sources[project_name])
-                    qty = len(unique_refs)
-
-                    if qty > 0:
-                        cat, val = key.split(" | ", 1)
-
-                        # Formatting Overrides
-                        row_notes = ""
-                        if "DIP SOCKET (Check Size)" in val:
-                            val = "DIP SOCKET"
-                            row_notes = "[!] Check Size"
-
-                        is_polarized = cat in ["Diodes", "Transistors", "ICs"]
-                        if cat == "Capacitors" and ("u" in val or "µ" in val):
-                            is_polarized = True
-
-                        project_parts.append(
-                            {
-                                "category": cat,
-                                "value": val,
-                                "qty": qty,
-                                "refs": unique_refs,
-                                "notes": row_notes,
-                                "polarized": is_polarized,
-                            }
-                        )
-
-            # Sort
-            sorted_parts = sort_by_z_height(project_parts)
-
-            # Add content (starts Page 1)
-            pdf.add_project(project_name, sorted_parts)
-
-            # Generate PDF bytes
-            pdf_bytes = bytes(pdf.output())
-
-            # Create Safe Filename
-            # e.g. "Big Muff - Ram's Head" -> "Big_Muff_-_Rams_Head_Field_Manual.pdf"
-            safe_name = re.sub(r"[^a-zA-Z0-9_\-]", "_", project_name)
-            filename = f"{safe_name}_Field_Manual.pdf"
-
-            # Write to ZIP
-            zf.writestr(filename, pdf_bytes)
+            # Check local path (Preset)
+            elif "pdf_path" in slot and slot["pdf_path"]:
+                try:
+                    with open(slot["pdf_path"], "rb") as f:
+                        zf.writestr(f"{safe_name}_Source.pdf", f.read())
+                except Exception:
+                    pass
 
     return zip_buffer.getvalue()

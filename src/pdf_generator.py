@@ -440,13 +440,17 @@ def generate_master_zip(inventory, slots, shopping_list_csv, stock_csv):
 
             # Check cached bytes (URL/Upload)
             if "cached_pdf_bytes" in slot and slot["cached_pdf_bytes"]:
-                zf.writestr(f"{safe_name}_Source.pdf", slot["cached_pdf_bytes"])
+                zf.writestr(
+                    f"Source Documents/{safe_name}_Source.pdf", slot["cached_pdf_bytes"]
+                )
 
             # Check local path (Preset)
             elif "pdf_path" in slot and slot["pdf_path"]:
                 try:
                     with open(slot["pdf_path"], "rb") as f:
-                        zf.writestr(f"{safe_name}_Source.pdf", f.read())
+                        zf.writestr(
+                            f"Source Documents/{safe_name}_Source.pdf", f.read()
+                        )
                 except Exception:
                     pass
 

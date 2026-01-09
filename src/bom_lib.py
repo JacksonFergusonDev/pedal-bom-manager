@@ -1344,6 +1344,12 @@ def parse_pedalpcb_pdf(
                 "JACKS",
                 "FEATURES",
                 "CONTROLS",
+                "REVISION",
+                "REV",
+                "VERSION",
+                "COPYRIGHT",
+                "WWW",
+                ".COM",
             ]
 
             # 3. Execution

@@ -45,6 +45,15 @@ class PartData(TypedDict):
 InventoryType = Dict[str, PartData]
 
 
+POT_TAPER_MAP = {
+    "A": "Logarithmic",
+    "B": "Linear",
+    "C": "Reverse Log",
+    "W": "W Taper",
+    "G": "Graphic",
+}
+
+
 # Chip substitution recommendations
 # Keys are the chips found in BOM, values are fun alternatives to try.
 # Structure: (Part Name, Sonic Profile, Technical Why)
@@ -299,11 +308,12 @@ def categorize_part(
     # Looks for "B100k", "10k-A" to identify pots by value.
     is_pot_value = False
 
-    # Prevent ICs (e.g. TC1044SCPA) and Transistors (e.g. BC549C) from matching
-    # the 'Ends with A/C' regex.
+    # Prevent ICs and Transistors from matching 'Ends with A/C' regex
     if not ref_up.startswith(("IC", "U", "Q", "OP", "TL")):
-        if re.search(r"[0-9]+.*[ABCWG]$", val_up) or re.search(
-            r"^[ABCWG][0-9]+", val_up
+        # Generate regex character class from map keys: "ABCWG"
+        taper_chars = "".join(POT_TAPER_MAP.keys())
+        if re.search(rf"[0-9]+.*[{taper_chars}]$", val_up) or re.search(
+            rf"^[{taper_chars}][0-9]+", val_up
         ):
             is_pot_value = True
 
@@ -671,18 +681,16 @@ def generate_search_term(category: str, val: str, spec_type: str = "") -> str:
         # Check for Gang type
         is_dual = "DUAL" in val_upper or "STEREO" in val_upper
 
-        if "A" in val_upper:
-            taper = "Logarithmic"
-        elif "B" in val_upper:
-            taper = "Linear"
-        elif "C" in val_upper:
-            taper = "Reverse Log"
-        elif "W" in val_upper:
-            taper = "W Taper"
+        # Lookup taper name from map
+        for code, name in POT_TAPER_MAP.items():
+            if code in val_upper:
+                taper = name
+                break
 
         # 2. Clean Value (e.g. "B100k" -> "100k")
-        # Strip taper letters so the float parser can find the number
-        clean_raw = re.sub(r"[ABCW\-\s]", "", val_upper)
+        # Strip taper letters dynamically
+        taper_chars = "".join(POT_TAPER_MAP.keys())
+        clean_raw = re.sub(rf"[{taper_chars}\-\s]", "", val_upper)
         fval = parse_value_to_float(clean_raw)
 
         if fval is not None:

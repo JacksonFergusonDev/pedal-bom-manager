@@ -329,6 +329,7 @@ def categorize_part(
         or ref_up in switch_labels
         or any(ref_up.startswith(label) for label in pot_labels)
         or is_pot_value
+        or ref_up == "CLR"
     )
 
     if not is_valid:

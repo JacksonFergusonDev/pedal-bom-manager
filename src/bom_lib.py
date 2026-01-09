@@ -298,6 +298,7 @@ def categorize_part(
         "DISTORTION",
         "OCTAVE",
         "AMPLITUDE",
+        "CLEAN",
     }
 
     # 3. Standard Component Prefixes

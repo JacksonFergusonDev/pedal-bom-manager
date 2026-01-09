@@ -6,7 +6,6 @@ import tempfile
 import requests
 from collections import defaultdict
 from typing import cast, List, Dict, Any
-from streamlit.runtime.uploaded_file_manager import UploadedFile
 import streamlit as st
 from src.presets import BOM_PRESETS
 from src.feedback import save_feedback
@@ -29,6 +28,8 @@ from src.bom_lib import (
     parse_user_inventory,
     calculate_net_needs,
     generate_pedalpcb_url,
+    rename_source_in_inventory,
+    create_empty_inventory,
 )
 
 st.set_page_config(page_title="Pedal BOM Manager", page_icon="🎸")
@@ -96,6 +97,88 @@ def merge_inventory(master_inv, new_inv, multiplier):
         master_inv[key]["refs"].extend(data["refs"])
         for src, refs in data["sources"].items():
             master_inv[key]["sources"][src].extend(refs * multiplier)
+
+
+def process_slot_data(slot, source_name):
+    """
+    Unified handler for Text, File, and URL inputs.
+    Returns: (Inventory, StatsDict, Detected_Name_Or_None)
+    """
+    method = slot["method"]
+    data = slot.get("data")
+
+    # 1. Early Exit
+    if not data:
+        return (
+            create_empty_inventory(),
+            {"lines_read": 0, "parts_found": 0, "residuals": []},
+            None,
+        )
+
+    inv, stats = create_empty_inventory(), {}
+
+    # 2. Strategy Pattern
+    try:
+        # A. PASTE TEXT / PRESET
+        if method in ["Paste Text", "Preset"]:
+            inv, stats = parse_with_verification([data], source_name=source_name)
+
+        # B. URL
+        elif method == "From URL":
+            response = requests.get(data.strip(), timeout=10)
+            response.raise_for_status()
+
+            is_pdf = data.lower().endswith(".pdf") or response.content.startswith(
+                b"%PDF"
+            )
+
+            if is_pdf:
+                slot["cached_pdf_bytes"] = response.content  # Cache for Zip
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                    tmp.write(response.content)
+                    tmp_path = tmp.name
+                try:
+                    inv, stats = parse_pedalpcb_pdf(tmp_path, source_name=source_name)
+                finally:
+                    if os.path.exists(tmp_path):
+                        os.remove(tmp_path)
+            else:
+                inv, stats = parse_with_verification(
+                    [response.text], source_name=source_name
+                )
+
+        # C. UPLOAD FILE
+        elif method == "Upload File":
+            # Data is UploadedFile object
+            f = data
+            f.seek(0)
+            if f.name.lower().endswith(".pdf"):
+                slot["cached_pdf_bytes"] = f.getvalue()
+                f.seek(0)
+
+            ext = os.path.splitext(f.name)[1].lower()
+            with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+                tmp.write(f.getvalue())
+                tmp_path = tmp.name
+
+            try:
+                if ext == ".pdf":
+                    inv, stats = parse_pedalpcb_pdf(tmp_path, source_name=source_name)
+                else:
+                    inv, stats = parse_csv_bom(tmp_path, source_name=source_name)
+            finally:
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+
+    except Exception as e:
+        st.error(f"❌ Error processing {source_name}: {str(e)}")
+        return (
+            create_empty_inventory(),
+            {"lines_read": 0, "parts_found": 0, "residuals": []},
+            None,
+        )
+
+    return inv, stats, stats.get("extracted_title")
 
 
 @st.cache_data
@@ -506,171 +589,32 @@ if st.button("Generate Master List", type="primary", width="stretch"):
     }
     # Process Each Slot
     for i, slot in enumerate(st.session_state.pedal_slots):
-        # Determine Source Name (Placeholder if empty)
-        # We don't lock in the name yet, giving the PDF parser a chance to find a better one.
-        # SAFEGUARD: Explicit cast to str() for Pylance
+        # Resolve Name
         current_name = str(slot.get("name") or "")
-
-        if current_name.strip():
-            source = current_name
-        else:
-            source = f"Project #{i + 1}"
-
+        source = current_name if current_name.strip() else f"Project #{i + 1}"
         qty_multiplier = slot.get("count", 1)
 
-        # A. Paste Text Mode (and Presets)
-        if slot["method"] in ["Paste Text", "Preset"]:
-            raw = slot.get("data", "")
-            if raw:
-                p_inv, p_stats = parse_with_verification([raw], source_name=source)
+        # Unified Processing
+        p_inv, p_stats, detected_title = process_slot_data(slot, source)
 
-                # Merge
-                merge_inventory(inventory, p_inv, qty_multiplier)
+        # Auto-Rename Logic
+        if detected_title and not current_name.strip():
+            # Update Slot Name
+            slot["name"] = str(detected_title)
+            # Remap Inventory Keys
+            rename_source_in_inventory(p_inv, source, str(detected_title))
 
-                stats["lines_read"] += p_stats["lines_read"]
-                stats["parts_found"] += p_stats["parts_found"]
-                stats["residuals"].extend(p_stats["residuals"])
+        # Merge
+        merge_inventory(inventory, p_inv, qty_multiplier)
+        stats["lines_read"] += p_stats.get("lines_read", 0)
+        stats["parts_found"] += p_stats.get("parts_found", 0)
+        stats["residuals"].extend(p_stats.get("residuals", []))
 
-        # B. File Upload Mode
-        elif slot["method"] == "Upload File":
-            # Cast to UploadedFile so Pylance knows it has .name and .getvalue()
-            f = cast(UploadedFile, slot.get("data"))
-            if f:
-                # CRITICAL: Reset cursor to start.
-                f.seek(0)
-
-                # Cache for Zip
-                if f.name.lower().endswith(".pdf"):
-                    slot["cached_pdf_bytes"] = f.getvalue()
-                    f.seek(0)  # Reset again after read
-
-                ext = os.path.splitext(f.name)[1].lower()
-                with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
-                    tmp.write(f.getvalue())
-                    tmp_path = tmp.name
-
-                try:
-                    if ext == ".pdf":
-                        p_inv, p_stats = parse_pedalpcb_pdf(
-                            tmp_path, source_name=source
-                        )
-                        # Feature: Auto-Name from PDF Title
-                        # Check extracted_title exists and current name is empty
-                        extracted_title = p_stats.get("extracted_title")
-
-                        if not str(slot.get("name") or "").strip() and extracted_title:
-                            # SAFEGUARD: Cast to string to satisfy type checker (key cannot be None)
-                            new_title = str(extracted_title)
-                            slot["name"] = new_title
-
-                            # Remap the temporary source to the found title
-                            for part in p_inv.values():
-                                if source in part["sources"]:
-                                    part["sources"][new_title] = part["sources"].pop(
-                                        source
-                                    )
-                    else:
-                        p_inv, p_stats = parse_csv_bom(tmp_path, source_name=source)
-
-                    # Merge
-                    merge_inventory(inventory, p_inv, qty_multiplier)
-
-                    stats["lines_read"] += p_stats["lines_read"]
-                    stats["parts_found"] += p_stats["parts_found"]
-                    stats["residuals"].extend(p_stats["residuals"])
-                finally:
-                    if os.path.exists(tmp_path):
-                        os.remove(tmp_path)
-
-        # C. URL Mode
-        elif slot["method"] == "From URL":
-            url = slot.get("data", "").strip()
-            if url:
-                try:
-                    # Added timeout=10s to prevent indefinite hangs
-                    response = requests.get(url, timeout=10)
-                    response.raise_for_status()
-
-                    # Check for PDF signature or extension
-                    is_pdf = url.lower().endswith(
-                        ".pdf"
-                    ) or response.content.startswith(b"%PDF")
-
-                    if is_pdf:
-                        # CACHE BYTES for Master Zip
-                        slot["cached_pdf_bytes"] = response.content
-
-                        with tempfile.NamedTemporaryFile(
-                            delete=False, suffix=".pdf"
-                        ) as tmp:
-                            tmp.write(response.content)
-                            tmp_path = tmp.name
-
-                        try:
-                            p_inv, p_stats = parse_pedalpcb_pdf(
-                                tmp_path, source_name=source
-                            )
-                            # Feature: Auto-Name from PDF Title
-                            # Check extracted_title exists and current name is empty
-                            extracted_title = p_stats.get("extracted_title")
-
-                            if (
-                                not str(slot.get("name") or "").strip()
-                                and extracted_title
-                            ):
-                                # SAFEGUARD: Cast to string to satisfy type checker (key cannot be None)
-                                new_title = str(extracted_title)
-                                slot["name"] = new_title
-
-                                # Remap the temporary source to the found title
-                                for part in p_inv.values():
-                                    if source in part["sources"]:
-                                        part["sources"][new_title] = part[
-                                            "sources"
-                                        ].pop(source)
-                        finally:
-                            if os.path.exists(tmp_path):
-                                os.remove(tmp_path)
-                    else:
-                        # Assume raw text
-                        raw_text = response.text
-                        p_inv, p_stats = parse_with_verification(
-                            [raw_text], source_name=source
-                        )
-
-                    merge_inventory(inventory, p_inv, qty_multiplier)
-                    stats["lines_read"] += p_stats["lines_read"]
-                    stats["parts_found"] += p_stats["parts_found"]
-                    stats["residuals"].extend(p_stats["residuals"])
-
-                # Friendly Error Handling
-                except requests.exceptions.MissingSchema:
-                    st.error(
-                        f"❌ '{source}': Invalid URL. Did you forget http:// or https://?"
-                    )
-                except requests.exceptions.ConnectionError:
-                    st.error(
-                        f"❌ '{source}': Connection failed. Check the URL or your internet."
-                    )
-                except requests.exceptions.Timeout:
-                    st.error(f"❌ '{source}': Server timed out. Try again later.")
-                except requests.exceptions.HTTPError as err:
-                    code = err.response.status_code
-                    if code == 404:
-                        st.error(
-                            f"❌ '{source}': File not found (404). Check the link."
-                        )
-                    else:
-                        st.error(f"❌ '{source}': Server returned error {code}.")
-                except Exception as e:
-                    st.error(f"❌ '{source}': Unexpected error: {str(e)}")
-
-        # Final Fallback: If name is still empty (no title found), lock in the placeholder
+        # Final Fallback: If name is still empty, lock in the placeholder
         if not slot["name"].strip():
             slot["name"] = source
 
-        # Save the final resolved name to a separate key that won't be overwritten
-        # by the empty text_input widget on the next script run.
+        # Save the final resolved name
         slot["locked_name"] = slot["name"]
 
     # Process Stock if uploaded

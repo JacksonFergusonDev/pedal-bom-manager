@@ -442,9 +442,7 @@ def parse_with_verification(
     """
     Parses raw text BOMs. Handles commas and ranges (R1-R4).
     """
-    inventory: InventoryType = defaultdict(
-        lambda: {"qty": 0, "refs": [], "sources": defaultdict(list)}
-    )
+    inventory = create_empty_inventory()
     stats: StatsDict = {
         "lines_read": 0,
         "parts_found": 0,
@@ -526,9 +524,7 @@ def parse_csv_bom(filepath: str, source_name: str) -> Tuple[InventoryType, Stats
     """
     Parses a CSV file. Expects columns vaguely named 'Ref' and 'Value'.
     """
-    inventory: InventoryType = defaultdict(
-        lambda: {"qty": 0, "refs": [], "sources": defaultdict(list)}
-    )
+    inventory = create_empty_inventory()
     stats: StatsDict = {
         "lines_read": 0,
         "parts_found": 0,
@@ -1116,9 +1112,7 @@ def parse_pedalpcb_pdf(
     # Lazy import: pdfplumber is heavy (~2s load time), only load if user actually uploads a PDF
     import pdfplumber
 
-    inventory: InventoryType = defaultdict(
-        lambda: {"qty": 0, "refs": [], "sources": defaultdict(list)}
-    )
+    inventory = create_empty_inventory()
     stats: StatsDict = {
         "lines_read": 0,
         "parts_found": 0,
@@ -1512,3 +1506,18 @@ def calculate_net_needs(bom: InventoryType, stock: InventoryType) -> InventoryTy
         net_inv[key]["qty"] = net_needed
 
     return net_inv
+
+
+def create_empty_inventory() -> InventoryType:
+    """Factory for the standard inventory structure."""
+    return defaultdict(lambda: {"qty": 0, "refs": [], "sources": defaultdict(list)})
+
+
+def rename_source_in_inventory(inventory: InventoryType, old_name: str, new_name: str):
+    """Remaps a source key in the inventory (e.g., 'Project #1' -> 'Big Muff')."""
+    if old_name == new_name:
+        return
+
+    for part in inventory.values():
+        if old_name in part["sources"]:
+            part["sources"][new_name] = part["sources"].pop(old_name)

@@ -1039,7 +1039,11 @@ def get_standard_hardware(inventory: InventoryType, pedal_count: int = 1) -> Non
     """
 
     def inject(
-        category: str, val: str, qty_per_pedal: int, note: str, qty_override: int = None
+        category: str,
+        val: str,
+        qty_per_pedal: int,
+        note: str,
+        qty_override: Optional[int] = None,
     ):
         """Standardizes the injection logic."""
         key = f"{category} | {val}"

@@ -71,6 +71,13 @@ def condense_refs(refs):
     return ", ".join(result_parts)
 
 
+def clean_val_for_display(val: str) -> str:
+    """Standardizes component names for cleaner labels."""
+    if "DIP SOCKET" in val.upper():
+        return "DIP Socket"
+    return val
+
+
 class StickerSheet(FPDF):
     def __init__(self):
         # Letter size (215.9mm x 279.4mm)
@@ -123,12 +130,13 @@ class StickerSheet(FPDF):
         )
 
         # Center: Value
+        display_val = clean_val_for_display(part_val)
         self.set_xy(x, y + 4)
         self.set_font("Helvetica", "B", 12)
         self.cell(
             self.label_w,
             8,
-            str(part_val)[:18],
+            str(display_val)[:18],
             align="C",
             new_x=XPos.LMARGIN,
             new_y=YPos.NEXT,
@@ -239,14 +247,16 @@ class FieldManual(FPDF):
             self.cell(15, 8, str(part["qty"]), 1, align="C")
 
             # Prepare Value & Notes
-            val_str = str(part["value"])
+            raw_val = str(part["value"])
+            val_str = clean_val_for_display(raw_val)
 
             # Logic: Red text for warnings/polarity
             if part["polarized"] or part["notes"]:
                 self.set_text_color(220, 50, 50)  # Red
                 if part["notes"]:
                     clean_note = part["notes"].replace("[!] ", "")
-                    val_str = f"{val_str} [{clean_note}]"
+                    if "DIP Socket" not in val_str:
+                        val_str = f"{val_str} [{clean_note}]"
             else:
                 self.set_text_color(0, 0, 0)  # Black
 
@@ -258,8 +268,8 @@ class FieldManual(FPDF):
 
             # [Refs] - Auto Width (Remaining)
             refs = ", ".join(part["refs"])
-            if len(refs) > 60:
-                refs = refs[:57] + "..."
+            if len(refs) > 50:
+                refs = refs[:47] + "..."
             self.cell(0, 8, refs, 1, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
 

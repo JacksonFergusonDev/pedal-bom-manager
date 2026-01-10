@@ -49,10 +49,10 @@ st.markdown(
 
 st.title("🎸 Guitar Pedal BOM Manager")
 st.markdown("""
-**Automate your electronics shopping list.**
+**Automate your electronics sourcing.**
 
-Paste your raw component lists (or upload a CSV). 
-This tool cleans the data, handles ranges like `R1-R5`, and adds "Nerd Economics" (bulk buying buffers) to your final list.
+Paste your component lists, upload CSVs/PDFs, import directly from URLs, or select a preset. 
+This tool cleans the data, handles component ranges, and calculates purchasing buffers using *Nerd Economics* to prevent shortages.
 """)
 
 if "inventory" not in st.session_state:
@@ -454,7 +454,7 @@ def on_method_change(slot_id):
 
 
 st.divider()
-st.subheader("1. Project Config")
+st.subheader("1. Project Configuration")
 
 # Placeholder Examples
 PLACEHOLDERS = [
@@ -635,11 +635,11 @@ if st.button("Generate Master List", type="primary", width="stretch"):
     st.session_state.stock = stock_inventory  # Save to session
     st.session_state.stats = stats
 
-    # Validation Logic (Change 3)
+    # Validation Logic
     if stats["parts_found"] == 0:
         st.error("❌ No parts found! Check your BOM text or file.")
     else:
-        st.toast("Generated Master List!", icon="🎸")
+        st.toast("Master List Generated Successfully", icon="✅")
 
 # Main Process
 if st.session_state.inventory and st.session_state.stats:
@@ -678,10 +678,10 @@ if st.session_state.inventory and st.session_state.stats:
 
     # Explain the columns
     st.info("""
-    **📋 List Key:**
-    * **Circuit Board:** Components found directly in your uploaded BOM.
-    * **Hardware Kit:** Enclosures, Jacks, and Switches auto-added based on your pedal count.
-    * **Extras:** Optional useful parts like IC Sockets and SMD adapters.
+    **📋 Key:**
+    * **Circuit Board:** Components found in your BOM.
+    * **Hardware Kit:** Auto-injected enclosures, jacks, and switches.
+    * **Extras:** Recommended add-ons (Sockets, Adapters).
     """)
 
     # 2. Build the Shopping List
@@ -798,7 +798,7 @@ if st.session_state.inventory and st.session_state.stats:
         )
 
     # 3. Render
-    st.subheader("🛒 Master List")
+    st.subheader("🛒 Master Shopping List")
 
     # Dynamic Columns (Change 1)
     display_cols = [
@@ -881,13 +881,13 @@ if st.session_state.inventory and st.session_state.stats:
 
     # Row 2: Everything
     st.download_button(
-        "📚 Download All Build Documents (ZIP)",
+        "📚 Download Complete Build Pack (ZIP)",
         data=generate_master_zip(
             inventory, st.session_state.pedal_slots, csv_out, stock_update_csv
         ),
         file_name="Pedal_Build_Pack_Complete.zip",
         mime="application/zip",
-        help="Includes: Shopping List, Inventory, Field Manuals, Stickers, and Source PDFs.",
+        help="Includes: Shopping List, Inventory, Field Manuals, Stickers, and Source Files.",
         type="primary",
         use_container_width=True,
     )
@@ -900,9 +900,9 @@ if "feedback_submitted" not in st.session_state:
 with st.expander("🐞 Found a bug? / 📢 Feedback"):
     # Check if they have already submitted
     if st.session_state.feedback_submitted:
-        st.success("Thanks for your feedback! Message received.")
+        st.success("Feedback received. Thank you!")
     else:
-        st.caption("Let me know if I missed a component or if the app exploded.")
+        st.caption("Found a parsing error? Have a feature request? Let me know.")
 
         with st.form("feedback_form"):
             col1, col2 = st.columns([1, 4])
@@ -911,9 +911,11 @@ with st.expander("🐞 Found a bug? / 📢 Feedback"):
                     "Rating", options=["😡", "😕", "😐", "🙂", "🤩"], value="🤩"
                 )
             with col2:
-                comment = st.text_area("Details", height=80, placeholder="Details...")
+                comment = st.text_area(
+                    "Details", height=80, placeholder="Describe the issue or idea..."
+                )
 
-            submitted = st.form_submit_button("Send Feedback")
+            submitted = st.form_submit_button("Submit Feedback")
 
             if submitted:
                 if not comment:

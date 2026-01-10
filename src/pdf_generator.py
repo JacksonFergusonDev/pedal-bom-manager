@@ -367,9 +367,9 @@ def _write_field_manuals(zf, inventory, slots):
             sorted_parts = sort_by_z_height(project_parts)
             pdf.add_project(project_name, sorted_parts)
 
-            safe_name = re.sub(r"[^a-zA-Z0-9_\-]", "_", project_name)
+            safe_name = re.sub(r'[<>:"/\\|?*]', "", project_name).strip()
             zf.writestr(
-                f"Field Manuals/{safe_name}_Field_Manual.pdf", bytes(pdf.output())
+                f"Field Manuals/{safe_name} Field Manual.pdf", bytes(pdf.output())
             )
 
 
@@ -399,9 +399,9 @@ def _write_stickers(zf, inventory, slots):
         for val, refs in project_parts:
             pdf.add_sticker(code, val, refs, len(refs))
 
-        safe_name = re.sub(r"[^a-zA-Z0-9_\-]", "_", project_name)
+        safe_name = re.sub(r'[<>:"/\\|?*]', "", project_name).strip()
         zf.writestr(
-            f"Sticker Sheets/{safe_name}_Sticker_Sheet.pdf", bytes(pdf.output())
+            f"Sticker Sheets/{safe_name} Sticker Sheet.pdf", bytes(pdf.output())
         )
 
 
@@ -424,14 +424,17 @@ def generate_master_zip(inventory, slots, shopping_list_csv, stock_csv):
         zf.writestr("My Inventory Updated.csv", stock_csv)
 
         info_text = (
-            "Guitar Pedal BOM Manager\n"
+            "Guitar Pedal BOM Manager v2.0.0\n"
+            "By: Jackson Ferguson\n"
             "Generated on: "
             + datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
             + "\n\n"
             "CONTENTS:\n"
             "- Field Manuals/: Printable step-by-step checklists.\n"
             "- Sticker Sheets/: Labels for Avery 5160 (3x10).\n"
-            "- Source Documents/: The original build docs (if available).\n"
+            "- Source Documents/: The original build docs (if available).\n\n"
+            "Github Page:\n"
+            "https://github.com/JacksonFergusonDev/pedal-bom-manager\n"
         )
         zf.writestr("info.txt", info_text)
 
@@ -442,7 +445,7 @@ def generate_master_zip(inventory, slots, shopping_list_csv, stock_csv):
         # 3. Source Documents
         for slot in slots:
             project_name = slot.get("locked_name", slot["name"])
-            safe_name = re.sub(r"[^a-zA-Z0-9_\-]", "_", project_name)
+            safe_name = re.sub(r'[<>:"/\\|?*]', "", project_name).strip()
 
             # Check cached bytes (URL/Upload)
             if "cached_pdf_bytes" in slot and slot["cached_pdf_bytes"]:

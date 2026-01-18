@@ -1,4 +1,4 @@
-# 🎸 Guitar Pedal BOM Manager (v2.0.0)
+# 🎸 Guitar Pedal BOM Manager (v2.1.2)
 
 ![Python Version](https://img.shields.io/badge/python-3.13-blue.svg)
 [![Python Application CI](https://github.com/JacksonFergusonDev/pedal-bom-manager/actions/workflows/python-app.yml/badge.svg)](https://github.com/JacksonFergusonDev/pedal-bom-manager/actions/workflows/python-app.yml)

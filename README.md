@@ -1,8 +1,8 @@
 # ⚡ Star Ground (v2.1.2)
 
 ![Python Version](https://img.shields.io/badge/python-3.13-blue.svg)
-[![Python Application CI](https://github.com/JacksonFergusonDev/pedal-bom-manager/actions/workflows/python-app.yml/badge.svg)](https://github.com/JacksonFergusonDev/pedal-bom-manager/actions/workflows/python-app.yml)
-[![Docker](https://github.com/JacksonFergusonDev/pedal-bom-manager/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/JacksonFergusonDev/pedal-bom-manager/actions/workflows/docker-publish.yml)
+[![Python Application CI](https://github.com/JacksonFergusonDev/star-ground/actions/workflows/python-app.yml/badge.svg)](https://github.com/JacksonFergusonDev/star-ground/actions/workflows/python-app.yml)
+[![Docker](https://github.com/JacksonFergusonDev/star-ground/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/JacksonFergusonDev/star-ground/actions/workflows/docker-publish.yml)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 
@@ -158,14 +158,14 @@ You can pull the pre-built image directly from the GitHub Container Registry wit
 
 ```bash
 # Run latest stable release
-docker run -p 8501:8501 ghcr.io/jacksonfergusondev/pedal-bom-manager:latest
+docker run -p 8501:8501 ghcr.io/jacksonfergusondev/star-ground:latest
 ```
 
 Or build from source:
 
 ```bash
-docker build -t pedal-bom-manager .
-docker run -p 8501:8501 pedal-bom-manager
+docker build -t star-ground .
+docker run -p 8501:8501 star-ground
 ```
 
 ### Option 3: Local Development
@@ -174,8 +174,8 @@ This project uses **uv** for dependency management.
 
 ```bash
 # 1. Clone & Enter
-git clone https://github.com/JacksonFergusonDev/pedal-bom-manager.git
-cd pedal-bom-manager
+git clone https://github.com/JacksonFergusonDev/star-ground.git
+cd star-ground
 
 # 2. Install Dependencies (Creates virtualenv automatically)
 uv sync

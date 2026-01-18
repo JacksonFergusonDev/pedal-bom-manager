@@ -1,4 +1,4 @@
-# 🎸 Guitar Pedal BOM Manager (v2.1.2)
+# ⚡ Star Ground (v2.1.2)
 
 ![Python Version](https://img.shields.io/badge/python-3.13-blue.svg)
 [![Python Application CI](https://github.com/JacksonFergusonDev/pedal-bom-manager/actions/workflows/python-app.yml/badge.svg)](https://github.com/JacksonFergusonDev/pedal-bom-manager/actions/workflows/python-app.yml)
@@ -8,7 +8,11 @@
 
 **Stop manually typing parts into Tayda. Paste your list, subtract your inventory, and print your build docs.**
 
-The **Pedal BOM Manager** is a full-stack logistics engine for guitar pedal builders. It ingests messy component lists (Text, CSV, PDF), normalizes the data, subtracts your existing inventory to calculate "Net Needs," and generates a complete manufacturing bundle—including shopping lists, assembly field manuals, and binning labels.
+> **In circuit design, a "Star Ground" is the single reference point where all signal paths converge to eliminate noise.**
+>
+> **In manufacturing, this application serves the same function: it is the Single Source of Truth for your component inventory, eliminating the "noise" of disorganized BOMs, duplicate orders, and inventory drift.**
+
+**Star Ground** is a full-stack logistics engine for electronics. It ingests messy component lists (Text, CSV, PDF), normalizes the data, and generates a complete manufacturing bundle.
 
 **🚀 [Try the Live App](https://pedal-bom-manager.streamlit.app/)**
 
